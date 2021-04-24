@@ -1,0 +1,53 @@
+- case: test_creation_with_annotations
+  main: |
+    from typc import Struct, UInt8, UInt16
+
+    class Pos(Struct):
+      x: UInt16
+      y: UInt16
+
+    class Size(Struct):
+      height: UInt8
+      width: UInt8
+
+    class Rect(Struct):
+      pos: Pos
+      size: Size
+
+    rect = Rect()
+    reveal_type(Rect.pos)         # N: Revealed type is "Type[main.Pos*]"
+    reveal_type(Rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
+    reveal_type(Rect.size)        # N: Revealed type is "Type[main.Size*]"
+    reveal_type(Rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"
+    reveal_type(rect)             # N: Revealed type is "main.Rect"
+    reveal_type(rect.pos)         # N: Revealed type is "main.Pos*"
+    reveal_type(rect.pos.x)       # N: Revealed type is "builtins.int*"
+    reveal_type(rect.size)        # N: Revealed type is "main.Size*"
+    reveal_type(rect.size.width)  # N: Revealed type is "builtins.int*"
+
+- case: test_creation_with_instances
+  main: |
+    from typc import Struct, UInt8, UInt16
+
+    class Pos(Struct):
+      x = UInt16()
+      y = UInt16()
+
+    class Size(Struct):
+      height = UInt8()
+      width = UInt8()
+
+    class Rect(Struct):
+      pos = Pos()
+      size = Size()
+
+    rect = Rect()
+    reveal_type(Rect.pos)         # N: Revealed type is "Type[main.Pos*]"
+    reveal_type(Rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
+    reveal_type(Rect.size)        # N: Revealed type is "Type[main.Size*]"
+    reveal_type(Rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"
+    reveal_type(rect)             # N: Revealed type is "main.Rect"
+    reveal_type(rect.pos)         # N: Revealed type is "main.Pos*"
+    reveal_type(rect.pos.x)       # N: Revealed type is "builtins.int*"
+    reveal_type(rect.size)        # N: Revealed type is "main.Size*"
+    reveal_type(rect.size.width)  # N: Revealed type is "builtins.int*"
