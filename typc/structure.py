@@ -27,9 +27,15 @@ def spec_from_fields(fields: Iterable[TypcType]) -> Tuple[str, int]:
 class StructType(TypcType):
     __slots__ = ('__typc_name__', '__typc_members__')
 
+    __typc_members__: Dict[str, Tuple[int, TypcType]]
+
     def __init__(self, name: str, members: Dict[str, TypcType]) -> None:
         self.__typc_name__ = name
-        self.__typc_members__ = members
+        offset = 0
+        members_dict = self.__typc_members__ = {}
+        for member_name, member_type in members.items():
+            members_dict[member_name] = (offset, member_type)
+            offset += member_type.__typc_size__
         spec, size = spec_from_fields(members.values())  # type: ignore
         self.__typc_spec__ = BuiltinStruct('<' + spec)
         self.__typc_size__ = size
@@ -43,9 +49,9 @@ class StructType(TypcType):
             return StructValue(self, None)
         return StructValue(self, values)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
-            return self.__typc_members__[name]
+            return self.__typc_members__[name][1]
         raise AttributeError
 
 
@@ -57,7 +63,7 @@ class StructValue(TypcValue):
 
     __typc_type__: StructType
     __typc_inited__: bool
-    __typc_value__: Dict[str, Any]
+    __typc_value__: Dict[str, Union[TypcValue, Any]]
 
     def __init__(
         self,
@@ -79,7 +85,7 @@ class StructValue(TypcValue):
             raise TypeError
         self.__typc_value__ = {
             member_name: member_type(val)
-            for (member_name, member_type), val in zip(
+            for (member_name, (_, member_type)), val in zip(
                 struct_type.__typc_members__.items(), values_tuple)
         }
         self.__typc_inited__ = True
@@ -101,9 +107,9 @@ class StructValue(TypcValue):
         else:
             raise TypeError
         values_dict = self.__typc_value__
-        for (member_name, member_type), prev_val, new_val in zip(
-                self_type.__typc_members__.items(), list(values_dict.values()),
-                new_values):
+        for ((member_name, (_, member_type)), prev_val,
+             new_val) in zip(self_type.__typc_members__.items(),
+                             list(values_dict.values()), new_values):
             if isinstance(prev_val, TypcValue):
                 prev_val.__typc_set__(new_val)
             else:
@@ -112,8 +118,8 @@ class StructValue(TypcValue):
     def _zero_init(self) -> None:
         self.__typc_value__ = {
             member_name: member_type(0)
-            for member_name, member_type in
-            self.__typc_type__.__typc_members__.items()
+            for member_name, (_, member_type) in (
+                self.__typc_type__.__typc_members__.items())
         }
         self.__typc_inited__ = True
 
@@ -136,8 +142,8 @@ class StructValue(TypcValue):
             if isinstance(current_value, TypcValue):
                 current_value.__typc_set__(value)
             else:
-                values_dict[name] = self.__typc_type__.__typc_members__[name](
-                    value)
+                _, member_type = self.__typc_type__.__typc_members__[name]
+                values_dict[name] = member_type(value)
         else:
             raise AttributeError
 
