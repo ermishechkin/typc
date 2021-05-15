@@ -155,8 +155,9 @@ class ArrayType(TypcType):
         self,
         values: Union[Literal[None], Literal[0], bytes, Tuple[Any, ...],
                       ArrayValue] = None,
+        child_data: Optional[Tuple[TypcValue, int]] = None,
     ) -> ArrayValue:
-        return ArrayValue(self, values)
+        return ArrayValue(self, values, child_data)
 
 
 class ArrayValue(TypcValue):
@@ -169,8 +170,10 @@ class ArrayValue(TypcValue):
         array_type: ArrayType,
         values: Union[bytes, Tuple[Any, ...], ArrayValue, Literal[None],
                       Literal[0]] = None,
+        child_data: Optional[Tuple[TypcValue, int]] = None,
     ) -> None:
         self.__typc_type__ = array_type
+        self.__typc_child_data__ = child_data
         if values in (None, 0):
             self.__typc_inited__ = False
             return
@@ -183,7 +186,14 @@ class ArrayValue(TypcValue):
         else:
             raise TypeError
         element_type = array_type.__typc_element__
-        self.__typc_value__ = [element_type(val) for val in values_tuple]
+        element_size = element_type.__typc_size__
+        self.__typc_value__ = [
+            element_type(
+                val,
+                None if child_data is None else
+                (self, child_data[1] + idx * element_size),
+            ) for idx, val in enumerate(values_tuple)
+        ]
         self.__typc_inited__ = True
 
     def __getitem__(self, index: int) -> Union[TypcValue, Any]:
@@ -197,13 +207,32 @@ class ArrayValue(TypcValue):
         el_type = self.__typc_type__.__typc_element__
         if isinstance(el_type, TypcAtomType):
             self.__typc_value__[index] = el_type(value)
+            if self.__typc_child_data__ is not None:
+                parent, self_offset = self.__typc_child_data__
+                parent.__typc_changed__(
+                    self,
+                    el_type.__typc_spec__.pack(self.__typc_value__[index]),
+                    self_offset + index * el_type.__typc_size__)
         else:
             self.__typc_value__[index].__typc_set__(value)
+            if self.__typc_child_data__ is not None:
+                parent, self_offset = self.__typc_child_data__
+                parent.__typc_changed__(
+                    self, bytes(self.__typc_value__[index]),
+                    self_offset + index * el_type.__typc_size__)
 
     def _zero_init(self) -> None:
         element_type = self.__typc_type__.__typc_element__
         element_count = self.__typc_type__.__typc_count__
-        self.__typc_value__ = [element_type(0) for _ in range(element_count)]
+        element_size = element_type.__typc_size__
+        child_data = self.__typc_child_data__
+        self.__typc_value__ = [
+            element_type(
+                0,
+                None if child_data is None else
+                (self, child_data[1] + idx * element_size),
+            ) for idx in range(element_count)
+        ]
         self.__typc_inited__ = True
 
     def __bytes__(self) -> bytes:
@@ -240,3 +269,34 @@ class ArrayValue(TypcValue):
                 values_list[i] = el_type(new_val)
             else:
                 values_list[i].__typc_set__(new_val)
+
+    def __typc_set_part__(self, data: bytes, offset: int) -> None:
+        el_type = self.__typc_type__.__typc_element__
+        if isinstance(el_type, TypcAtomType):
+            src_data = bytes(self)
+            dst_data = src_data[:offset] + data + src_data[offset + len(data):]
+            self.__typc_value__ = list(
+                self.__typc_type__.__typc_spec__.unpack(dst_data))
+        else:
+            el_size = el_type.__typc_size__
+            values_list = self.__typc_value__
+            first_off = offset % el_size
+            first_idx = offset // el_size
+            last_idx = (offset + len(data) - 1) // el_size
+            if first_off:
+                el_data = data[:el_size - first_off]
+                values_list[first_idx].__typc_set_part__(el_data, first_off)
+                first_idx += 1
+                data = data[el_size - first_off:]
+            for idx in range(last_idx - first_idx + 1):
+                el_data = data[idx * el_size:(idx + 1) * el_size]
+                if len(el_data) == el_size:
+                    values_list[first_idx + idx].__typc_set__(el_data)
+                else:
+                    values_list[first_idx + idx].__typc_set_part__(el_data, 0)
+
+    def __typc_changed__(self, source: TypcValue, data: bytes,
+                         offset: int) -> None:
+        assert self.__typc_child_data__ is not None
+        parent, _ = self.__typc_child_data__
+        parent.__typc_changed__(self, data, offset)

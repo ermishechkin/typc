@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+from struct import Struct as BuiltinStruct
+from typing import Any, Dict, Literal, Optional, Tuple, TypeVar
+from typing import Union as TypingUnion
+from typing import overload
+
+from ._base import ContainerBase
+from ._impl import TypcType, TypcValue
+from ._meta import members_from_class
+
+SELF = TypeVar('SELF', bound='Union')
+
+_object_setattr = object.__setattr__
+
+
+class UnionType(TypcType):
+    __slots__ = ('__typc_name__', '__typc_members__')
+
+    def __init__(self, name: str, members: Dict[str, TypcType]) -> None:
+        self.__typc_name__ = name
+        self.__typc_members__ = dict(members)
+        self.__typc_size__ = max(m.__typc_size__ for m in members.values())
+        self.__typc_spec__ = BuiltinStruct(f'<{self.__typc_size__}s')
+
+    def __call__(
+        self,
+        values: TypingUnion[Literal[None], Literal[0], bytes,
+                            UnionValue] = None,
+        child_data: Optional[Tuple[TypcValue, int]] = None,
+    ) -> UnionValue:
+        if values == 0:
+            return UnionValue(self, None, child_data)
+        return UnionValue(self, values, child_data)
+
+    def __getattr__(self, name: str) -> TypcType:
+        if name in self.__typc_members__:
+            return self.__typc_members__[name]
+        raise AttributeError
+
+
+UNION_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__', '__typc_value__',
+                     '__typc_raw__')
+
+
+class UnionValue(TypcValue):
+    __slots__ = ('__typc_value__', '__typc_raw__')
+
+    __typc_type__: UnionType
+    __typc_value__: Dict[str, Optional[TypingUnion[TypcValue, Any]]]
+    __typc_raw__: bytes
+
+    def __init__(
+        self,
+        union_type: UnionType,
+        values: Optional[TypingUnion[bytes, UnionValue, Literal[None],
+                                     Literal[0]]],
+        child_data: Optional[Tuple[TypcValue, int]] = None,
+    ) -> None:
+        self.__typc_type__ = union_type
+        self.__typc_child_data__ = child_data
+        if values in (None, 0):
+            value_raw = bytes(union_type.__typc_size__)
+        elif isinstance(values, bytes):
+            value_raw = values
+        elif isinstance(values, UnionValue):
+            value_raw = bytes(values)
+        else:
+            raise TypeError
+        self.__typc_raw__ = value_raw
+        self.__typc_value__ = {
+            member_name: None
+            for member_name in union_type.__typc_members__.keys()
+        }
+
+    def __typc_set__(self, value: Any) -> None:
+        self_type = self.__typc_type__
+        new_value: bytes
+        if value in (None, 0):
+            new_value = bytes(self_type.__typc_size__)
+        elif isinstance(value, bytes):
+            new_value = value
+        elif isinstance(value, UnionValue):
+            new_value = bytes(value)
+        else:
+            raise TypeError
+        self.__typc_raw__ = new_value
+        values_dict = self.__typc_value__
+        for ((member_name, member_type),
+             prev_val) in zip(self_type.__typc_members__.items(),
+                              tuple(values_dict.values())):
+            if prev_val is None:
+                continue
+            member_raw = new_value[:member_type.__typc_size__]
+            if isinstance(prev_val, TypcValue):
+                prev_val.__typc_set__(member_raw)
+            else:
+                values_dict[member_name] = member_type(member_raw)
+
+    def __typc_set_part__(self, data: bytes, offset: int) -> None:
+        self._set_part_impl(data, offset, None)
+
+    def __typc_changed__(self, source: TypcValue, data: bytes,
+                         offset: int) -> None:
+        self._set_part_impl(data, offset, source)
+
+    def _set_part_impl(self, data: bytes, offset: int,
+                       exclude: Optional[TypcValue]) -> None:
+        prev_raw = self.__typc_raw__
+        self.__typc_raw__ = new_raw = (prev_raw[:offset] + data +
+                                       prev_raw[offset + len(data):])
+        for name, member_type in self.__typc_type__.__typc_members__.items():
+            member_size = member_type.__typc_size__
+            if offset >= member_size:
+                continue
+            member_value = self.__typc_value__[name]
+            if member_value is None:
+                continue
+            if isinstance(member_value, TypcValue):
+                if member_value is not exclude:
+                    member_value.__typc_set_part__(data[:member_size - offset],
+                                                   offset)
+            else:
+                (self.__typc_value__[name], ) = (
+                    member_type.__typc_spec__.unpack(new_raw[:member_size]))
+        if exclude is not None and self.__typc_child_data__ is not None:
+            parent, self_offset = self.__typc_child_data__
+            parent.__typc_changed__(self, data, self_offset + offset)
+
+    def __getattr__(self, name: str) -> Any:
+        if name not in self.__typc_value__:
+            raise AttributeError
+        value = self.__typc_value__[name]
+        if value is None:
+            member_type = self.__typc_type__.__typc_members__[name]
+            value = member_type(self.__typc_raw__[:member_type.__typc_size__],
+                                (self, 0))
+            self.__typc_value__[name] = value
+        return value
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in UNION_VALUE_ATTRS:
+            _object_setattr(self, name, value)
+            return
+        values_dict = self.__typc_value__
+        if name not in values_dict:
+            raise AttributeError
+        member_value = values_dict[name]
+        member_type = self.__typc_type__.__typc_members__[name]
+        if member_value is None:
+            new_value = member_type(value, (self, 0))
+            values_dict[name] = new_value
+        elif isinstance(member_value, TypcValue):
+            member_value.__typc_set__(value)
+            new_value = member_value
+        else:
+            new_value = member_type(value)
+            values_dict[name] = new_value
+        if isinstance(new_value, TypcValue):
+            self._set_part_impl(bytes(new_value), 0, new_value)
+        else:
+            self._set_part_impl(member_type.__typc_spec__.pack(new_value), 0,
+                                None)
+
+    def __bytes__(self) -> bytes:
+        return self.__typc_raw__
+
+
+class UnionMeta(type):
+    def __new__(cls, name: str, bases: Tuple[type, ...],
+                namespace_dict: Dict[str, Any]):
+        if namespace_dict['__module__'] == __name__:
+            return type.__new__(cls, name, bases, namespace_dict)
+        members = members_from_class(namespace_dict)
+        return UnionType(name, members)  # type: ignore
+
+
+class Union(ContainerBase, metaclass=UnionMeta):
+    @overload
+    def __init__(self, values: Literal[None] = None) -> None:
+        ...
+
+    @overload
+    def __init__(self, values: Literal[0]) -> None:
+        ...
+
+    @overload
+    def __init__(self: SELF, values: SELF) -> None:
+        ...
+
+    @overload
+    def __init__(self, values: bytes) -> None:
+        ...
+
+    def __init__(self, values: Any = None) -> None:
+        # pylint: disable=super-init-not-called
+        raise NotImplementedError
+
+    @overload
+    def __set__(self, inst: ContainerBase, value: Literal[0]) -> None:
+        ...
+
+    @overload
+    def __set__(self, inst: ContainerBase, value: bytes) -> None:
+        ...
+
+    @overload
+    def __set__(self: SELF, inst: ContainerBase, value: SELF) -> None:
+        ...
+
+    def __set__(self: SELF, inst: ContainerBase,
+                value: TypingUnion[Literal[0], bytes, SELF]) -> None:
+        raise NotImplementedError
+
+    def __bytes__(self) -> bytes:
+        raise NotImplementedError
+
+    def __typc_set__(self, value: Any) -> None:
+        raise NotImplementedError

@@ -41,10 +41,11 @@ class StructType(TypcType):
         self,
         values: Union[Literal[None], Literal[0], bytes, Tuple[Any, ...],
                       StructValue] = None,
+        child_data: Optional[Tuple[TypcValue, int]] = None,
     ) -> StructValue:
         if values == 0:
-            return StructValue(self, None)
-        return StructValue(self, values)
+            return StructValue(self, None, child_data)
+        return StructValue(self, values, child_data)
 
     def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
@@ -52,7 +53,8 @@ class StructType(TypcType):
         raise AttributeError
 
 
-STRUCT_VALUE_ATTRS = ('__typc_type__', '__typc_inited__', '__typc_value__')
+STRUCT_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__',
+                      '__typc_inited__', '__typc_value__')
 
 
 class StructValue(TypcValue):
@@ -67,8 +69,10 @@ class StructValue(TypcValue):
         struct_type: StructType,
         values: Optional[Union[Tuple[Any, ...], bytes, StructValue,
                                Literal[None], Literal[0]]],
+        child_data: Optional[Tuple[TypcValue, int]] = None,
     ) -> None:
         self.__typc_type__ = struct_type
+        self.__typc_child_data__ = child_data
         if values in (None, 0):
             self.__typc_inited__ = False
             return
@@ -81,8 +85,12 @@ class StructValue(TypcValue):
         else:
             raise TypeError
         self.__typc_value__ = {
-            member_name: member_type(val)
-            for (member_name, (_, member_type)), val in zip(
+            member_name: member_type(
+                val,
+                None if child_data is None else
+                (self, child_data[1] + member_offset),
+            )
+            for (member_name, (member_offset, member_type)), val in zip(
                 struct_type.__typc_members__.items(), values_tuple)
         }
         self.__typc_inited__ = True
@@ -112,10 +120,45 @@ class StructValue(TypcValue):
             else:
                 values_dict[member_name] = member_type(new_val)
 
+    def __typc_set_part__(self, data: bytes, offset: int) -> None:
+        last_byte = offset + len(data) - 1
+        for name, (member_start, member_type) in (
+                self.__typc_type__.__typc_members__.items()):
+            if member_start > last_byte:
+                break
+            member_end = member_start + member_type.__typc_size__ - 1
+            if member_end < offset:
+                continue
+            start = max(member_start, offset)
+            end = min(member_end, last_byte)
+            data_part = data[start - offset:end + 1 - offset]
+            member_value = self.__typc_value__[name]
+            if isinstance(member_value, TypcValue):
+                member_value.__typc_set_part__(data_part, start - member_start)
+            else:
+                start_rel = start - member_start
+                end_rel = end - member_start
+                src_bytes = member_type.__typc_spec__.pack(member_value)
+                (self.__typc_value__[name], ) = (
+                    member_type.__typc_spec__.unpack(src_bytes[:start_rel] +
+                                                     data_part +
+                                                     src_bytes[end_rel + 1:]))
+
+    def __typc_changed__(self, source: TypcValue, data: bytes,
+                         offset: int) -> None:
+        assert self.__typc_child_data__ is not None
+        parent, _ = self.__typc_child_data__
+        parent.__typc_changed__(self, data, offset)
+
     def _zero_init(self) -> None:
+        child_data = self.__typc_child_data__
         self.__typc_value__ = {
-            member_name: member_type(0)
-            for member_name, (_, member_type) in (
+            member_name: member_type(
+                0,
+                None if child_data is None else
+                (self, child_data[1] + member_offset),
+            )
+            for member_name, (member_offset, member_type) in (
                 self.__typc_type__.__typc_members__.items())
         }
         self.__typc_inited__ = True
@@ -138,9 +181,21 @@ class StructValue(TypcValue):
             current_value = values_dict[name]
             if isinstance(current_value, TypcValue):
                 current_value.__typc_set__(value)
+                if self.__typc_child_data__ is not None:
+                    parent, self_offset = self.__typc_child_data__
+                    member_offset, _ = (
+                        self.__typc_type__.__typc_members__[name])
+                    parent.__typc_changed__(self, bytes(current_value),
+                                            self_offset + member_offset)
             else:
-                _, member_type = self.__typc_type__.__typc_members__[name]
-                values_dict[name] = member_type(value)
+                member_offset, member_type = (
+                    self.__typc_type__.__typc_members__[name])
+                new_value = values_dict[name] = member_type(value)
+                if self.__typc_child_data__ is not None:
+                    parent, self_offset = self.__typc_child_data__
+                    parent.__typc_changed__(
+                        self, member_type.__typc_spec__.pack(new_value),
+                        self_offset + member_offset)
         else:
             raise AttributeError
 
