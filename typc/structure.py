@@ -265,7 +265,9 @@ class Struct(ContainerBase, metaclass=StructMeta):
         raise NotImplementedError
 
     def __bytes__(self) -> bytes:
+        ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
     def __typc_set__(self, value: Any) -> None:
+        ...  # mark as non-abstract for pylint
         raise NotImplementedError

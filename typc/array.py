@@ -124,9 +124,11 @@ class Array(Generic[EL, SIZE], BaseType):
         return generic_class_getitem(cls, args)
 
     def __bytes__(self) -> bytes:
+        ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
     def __typc_set__(self, value: Any) -> None:
+        ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
     def __new__(
