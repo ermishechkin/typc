@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
 from struct import calcsize
-from typing import (Any, Dict, Iterable, List, Literal, Optional, Tuple,
-                    TypeVar, Union, overload)
+from typing import (Any, Dict, Iterable, List, Literal, Optional, Tuple, Type,
+                    TypeVar, Union, cast, overload)
 
-from ._base import ContainerBase
+from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
 from ._meta import members_from_class
 
 SELF = TypeVar('SELF', bound='Struct')
+CLASS = TypeVar('CLASS')
 
 _object_setattr = object.__setattr__
 
@@ -51,6 +52,11 @@ class StructType(TypcType):
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]
         raise AttributeError
+
+    def __getitem__(self, name: str) -> TypcType:
+        if name in self.__typc_members__:
+            return self.__typc_members__[name][1]
+        raise KeyError
 
 
 STRUCT_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__',
@@ -199,6 +205,18 @@ class StructValue(TypcValue):
         else:
             raise AttributeError
 
+    def __getitem__(self, name: str) -> Any:
+        try:
+            return getattr(self, name)
+        except AttributeError:
+            raise KeyError from None
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        try:
+            return setattr(self, name, value)
+        except AttributeError:
+            raise KeyError from None
+
     def __bytes__(self) -> bytes:
         if not self.__typc_inited__:
             self._zero_init()
@@ -271,3 +289,130 @@ class Struct(ContainerBase, metaclass=StructMeta):
     def __typc_set__(self, value: Any) -> None:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
+
+
+class _UntypedStruct(BaseType):
+    @overload
+    def __set__(self, inst: ContainerBase, value: Literal[0]) -> None:
+        ...
+
+    @overload
+    def __set__(self, inst: ContainerBase, value: bytes) -> None:
+        ...
+
+    @overload
+    def __set__(self, inst: ContainerBase, value: Tuple[Any, ...]) -> None:
+        ...
+
+    @overload
+    def __set__(self, inst: ContainerBase, value: UntypedStructValue) -> None:
+        ...
+
+    def __set__(self, inst: ContainerBase, value: Any) -> None:
+        raise NotImplementedError
+
+    def __bytes__(self) -> bytes:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __typc_set__(self, value: Any) -> None:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+
+class UntypedStructType(_UntypedStruct):
+    @overload
+    def __get__(self, owner: Literal[None],
+                inst: Type[ContainerBase]) -> UntypedStructType:
+        ...
+
+    @overload
+    def __get__(self, owner: ContainerBase,
+                inst: Type[ContainerBase]) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __get__(self, owner: Optional[CLASS],
+                inst: Type[CLASS]) -> UntypedStructType:
+        ...
+
+    def __get__(
+            self, owner: Optional[Any],
+            inst: Type[Any]) -> Union[UntypedStructType, UntypedStructValue]:
+        raise NotImplementedError
+
+    def __getitem__(self, field: str) -> Type[BaseType]:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    @overload
+    def __call__(self, values: Literal[None] = None) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __call__(self, values: Literal[0]) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __call__(self, values: UntypedStructValue) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __call__(self, values: bytes) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __call__(self, values: Tuple[Any, ...]) -> UntypedStructValue:
+        ...
+
+    def __call__(self, values: Any = None) -> UntypedStructValue:
+        # pylint: disable=super-init-not-called
+        raise NotImplementedError
+
+
+class UntypedStructValue(_UntypedStruct):
+    @overload
+    def __get__(self, owner: Literal[None],
+                inst: Type[ContainerBase]) -> UntypedStructType:
+        ...
+
+    @overload
+    def __get__(self, owner: ContainerBase,
+                inst: Type[ContainerBase]) -> UntypedStructValue:
+        ...
+
+    @overload
+    def __get__(self, owner: Optional[CLASS],
+                inst: Type[CLASS]) -> UntypedStructValue:
+        ...
+
+    def __get__(
+            self, owner: Optional[Any],
+            inst: Type[Any]) -> Union[UntypedStructType, UntypedStructValue]:
+        raise NotImplementedError
+
+    def __getitem__(self, field: str) -> Any:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __setitem__(self, field: str, value: Any) -> None:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+
+def create_struct(
+    name: str,
+    fields: Dict[str, Union[BaseType, Type[BaseType]]],
+) -> UntypedStructType:
+    if not fields:
+        raise ValueError('No members declared')
+    fields_: Dict[str, Any] = fields
+    members: Dict[str, TypcType] = {}
+    for member_name, member_value in fields_.items():
+        if isinstance(member_value, TypcType):
+            members[member_name] = member_value
+        elif isinstance(member_value, TypcValue):
+            members[member_name] = member_value.__typc_type__
+        else:
+            raise ValueError('Only type members are allowed')
+    return cast(UntypedStructType, StructType(name, members))
