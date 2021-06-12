@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import UInt8, UInt16, create_struct
+from typc import UInt8, UInt16, create_struct, sizeof, typeof
 
 
 def test_declaration() -> None:
@@ -63,7 +63,19 @@ def test_packed_size() -> None:
         'field2': UInt16,
     })
     some = some_t(0)
+    assert sizeof(some_t) == 3
+    assert sizeof(some) == 3
     assert bytes(some) == b'\x00\x00\x00'
+
+
+def test_typeof() -> None:
+    some_t = create_struct('SomeStruct', {
+        'field1': UInt8,
+        'field2': UInt16,
+    })
+
+    data = some_t(0)
+    assert typeof(data) is some_t
 
 
 def test_init_zero() -> None:

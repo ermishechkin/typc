@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Float, Struct, UInt16
+from typc import Float, Struct, UInt16, sizeof
 
 
 def test_zero_init() -> None:
@@ -55,3 +55,10 @@ def test_init_bad_type() -> None:
     data = SomeStruct()
     with raises(TypeError):
         data.field = UInt16('bad value')  # type: ignore
+
+
+def test_type_sizeof() -> None:
+    class SomeStruct(Struct):
+        field: UInt16
+
+    assert sizeof(SomeStruct.field) == 2

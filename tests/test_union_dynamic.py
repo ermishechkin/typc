@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Struct, UInt8, UInt16, create_union
+from typc import Struct, UInt8, UInt16, create_union, sizeof, typeof
 
 
 def test_declaration() -> None:
@@ -51,6 +51,32 @@ def test_nonexistent_value_member_set() -> None:
     inst = some_t(0)
     with raises(KeyError):
         inst['bad'] = 1
+
+
+def test_sizeof() -> None:
+    class Pos(Struct):
+        x: UInt16
+        y: UInt16
+
+    data_t = create_union('Data', {
+        'u16': UInt16,
+        'pos': Pos,
+        'u8': UInt8,
+    })
+
+    data = data_t(0)
+    assert sizeof(data_t) == 4
+    assert sizeof(data) == 4
+
+
+def test_typeof() -> None:
+    data_t = create_union('Data', {
+        'u16': UInt16,
+        'u8': UInt8,
+    })
+
+    data = data_t(0)
+    assert typeof(data) is data_t
 
 
 def test_init_zero() -> None:

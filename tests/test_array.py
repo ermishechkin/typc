@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pytest import raises
-from typc import Array, Struct, UInt8, UInt16
+from typc import Array, Struct, UInt8, UInt16, sizeof, typeof
 
 
 def test_array_init() -> None:
@@ -81,6 +81,27 @@ def test_struct_member_classvar() -> None:
 
     data = SomeStruct()
     assert bytes(data) == b'\x00\x00\x00\x00\x00\x00\x00\x00'
+
+
+def test_sizeof() -> None:
+    class SomeStruct(Struct):
+        field = Array(UInt16, 4)
+
+    data = SomeStruct(0)
+    arr_t = SomeStruct.field
+    arr = data.field
+    assert sizeof(arr_t) == 8
+    assert sizeof(arr) == 8
+
+
+def test_typeof() -> None:
+    class SomeStruct(Struct):
+        field = Array(UInt16, 4)
+
+    data = SomeStruct(0)
+    arr_t = SomeStruct.field
+    arr = data.field
+    assert typeof(arr) is arr_t
 
 
 def test_array_as_struct_member_simple() -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Struct, UInt8, UInt16, Union
+from typc import Struct, UInt8, UInt16, Union, sizeof, typeof
 
 
 def test_declaration_annotations() -> None:
@@ -106,6 +106,30 @@ def test_nonexistent_value_member_set() -> None:
     with raises(AttributeError):
         # pylint: disable=attribute-defined-outside-init
         inst.bad = 1  # type: ignore
+
+
+def test_sizeof() -> None:
+    class Pos(Struct):
+        x: UInt16
+        y: UInt16
+
+    class Data(Union):
+        u16: UInt16
+        pos: Pos
+        u8: UInt8
+
+    data = Data(0)
+    assert sizeof(Data) == 4
+    assert sizeof(data) == 4
+
+
+def test_typeof() -> None:
+    class Data(Union):
+        u16: UInt16
+        u8: UInt8
+
+    data = Data(0)
+    assert typeof(data) is Data
 
 
 def test_init_zero() -> None:

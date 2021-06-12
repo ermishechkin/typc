@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Struct, UInt8, UInt16
+from typc import Struct, UInt8, UInt16, sizeof, typeof
 
 
 def test_struct_declaration_annotations() -> None:
@@ -116,7 +116,18 @@ def test_packed_size() -> None:
         field2: UInt16
 
     data = SomeStruct(0)
+    assert sizeof(SomeStruct) == 3
+    assert sizeof(data) == 3
     assert bytes(data) == b'\x00\x00\x00'
+
+
+def test_typeof() -> None:
+    class SomeStruct(Struct):
+        field1: UInt8
+        field2: UInt16
+
+    data = SomeStruct(0)
+    assert typeof(data) is SomeStruct
 
 
 def test_init_zero() -> None:
