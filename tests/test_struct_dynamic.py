@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import UInt8, UInt16, create_struct, sizeof, typeof
+from typc import UInt8, UInt16, create_struct, offsetof, sizeof, typeof
 
 
 def test_declaration() -> None:
@@ -76,6 +76,35 @@ def test_typeof() -> None:
 
     data = some_t(0)
     assert typeof(data) is some_t
+
+
+def test_offsetof_type() -> None:
+    some_t = create_struct('SomeStruct', {
+        'field1': UInt8,
+        'field2': UInt16,
+        'field3': UInt16,
+    })
+
+    assert offsetof(some_t, 'field1') == 0
+    assert offsetof(some_t, 'field2') == 1
+    assert offsetof(some_t, 'field3') == 3
+    with raises(KeyError):
+        offsetof(some_t, 'bad_field')
+
+
+def test_offsetof_value() -> None:
+    some_t = create_struct('SomeStruct', {
+        'field1': UInt8,
+        'field2': UInt16,
+        'field3': UInt16,
+    })
+
+    data = some_t(0)
+    assert offsetof(data, 'field1') == 0
+    assert offsetof(data, 'field2') == 1
+    assert offsetof(data, 'field3') == 3
+    with raises(KeyError):
+        offsetof(data, 'bad_field')
 
 
 def test_init_zero() -> None:
