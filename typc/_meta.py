@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import inspect
 from types import FrameType
-from typing import Any, Dict
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
 from ._impl import TypcType, TypcValue
+from ._modifier import Modified
+from .modifier import Padding, Shift
 
-MAP = Dict[str, TypcType]
+MEMBER = Union[TypcType, Padding[Any], Modified]
+MAP = Mapping[str, MEMBER]
 
 
 def _eval_member(annotation: Any, globals_dict: Dict[str, Any],
-                 locals_dict: Dict[str, Any]) -> Any:
+                 locals_dict: Dict[str, Any]) -> MEMBER:
     if isinstance(annotation, str):
         # pylint: disable=eval-used
         field_type = eval(annotation, globals_dict, locals_dict)
@@ -20,7 +23,32 @@ def _eval_member(annotation: Any, globals_dict: Dict[str, Any],
         return field_type
     if isinstance(field_type, TypcValue):
         return field_type.__typc_type__
+    if isinstance(field_type, Padding):
+        return field_type  # type: ignore
+    modified = parse_annotated(field_type)
+    if modified is not None:
+        return modified
     raise ValueError(f'{annotation} is not a valid type')
+
+
+def parse_annotated(
+        anotation_value: Any) -> Optional[Union[TypcType, Modified]]:
+    origin = getattr(anotation_value, '__origin__', None)
+    metadata: Optional[Tuple[Any, ...]]
+    metadata = getattr(anotation_value, '__metadata__', None)
+    if not isinstance(origin, TypcType):
+        return None
+    assert isinstance(metadata, tuple)
+    padding = 0
+    shift = 0
+    for meta in metadata:
+        if isinstance(meta, Padding):
+            padding = int(meta.__typc_padding__)
+        elif isinstance(meta, Shift):
+            shift = int(meta.__typc_shift__)
+    if shift != 0 or padding != 0:
+        return Modified(origin, shift=shift, padding=padding)
+    return origin
 
 
 def members_from_annotations(cls_dict: Dict[str, Any],
@@ -35,11 +63,11 @@ def members_from_annotations(cls_dict: Dict[str, Any],
 
 
 def members_from_classvars(cls_dict: Dict[str, Any]) -> MAP:
-    result: MAP = {}
+    result: Dict[str, MEMBER] = {}
     for name, value in cls_dict.items():
         if name in CLS_MEMBERS:
             continue
-        if isinstance(value, TypcType):
+        if isinstance(value, (TypcType, Padding, Modified)):
             result[name] = value
         elif isinstance(value, TypcValue):
             result[name] = value.__typc_type__

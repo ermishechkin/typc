@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Struct, UInt8, UInt16, create_union, sizeof, typeof
+from typc import (Padding, Struct, UInt8, UInt16, create_struct, create_union,
+                  offsetof, padded, shifted, sizeof, typeof)
 
 
 def test_declaration() -> None:
@@ -143,3 +144,82 @@ def test_init_bad_type() -> None:
     })
     with raises(TypeError):
         data_t('Bad value')  # type: ignore
+
+
+def test_padding() -> None:
+    child_t = create_struct('Child', {
+        'field1': UInt16,
+        'field2': UInt8,
+        'field3': UInt8,
+    })
+    data_t = create_union('Data', {
+        'child1': child_t,
+        '_pad': Padding(5),
+    })
+    assert sizeof(data_t) == 5
+    data = data_t(b'\x11\x22\x33\x44\x55')
+    assert data['child1']['field3'] == 0x44
+    assert bytes(data) == b'\x11\x22\x33\x44\x55'
+
+
+def test_shifted() -> None:
+    child1_t = create_struct('Child1', {
+        'field1_1': UInt16,
+        'field1_2': UInt8,
+        'field1_3': UInt8,
+    })
+    child2_t = create_struct('Child2', {
+        'field2_1': UInt8,
+        'field2_2': UInt16,
+        'field2_3': UInt8,
+    })
+    data_t = create_union(
+        'Data', {
+            'child1': child1_t,
+            'child2': shifted(child2_t, 1),
+            'child3': shifted(UInt16, 1),
+        })
+    assert sizeof(data_t) == 5
+    assert offsetof(data_t, 'child1') == 0
+    assert offsetof(data_t, 'child2') == 1
+    assert offsetof(data_t, 'child3') == 1
+
+    data = data_t(0)
+    child1 = data['child1']
+    data['child2']['field2_1'] = 0x12
+    assert child1['field1_1'] == 0x1200
+    assert data['child3'] == 0x12
+    assert bytes(data) == b'\x00\x12\x00\x00\x00'
+
+    child1['field1_2'] = 0x34
+    assert data['child2']['field2_2'] == 0x34
+    assert data['child3'] == 0x3412
+    assert bytes(data) == b'\x00\x12\x34\x00\x00'
+
+    child1['field1_1'] = 0x5678
+    assert data['child2']['field2_1'] == 0x56
+    assert data['child3'] == 0x3456
+    assert bytes(data) == b'\x78\x56\x34\x00\x00'
+
+
+def test_padded() -> None:
+    child_t = create_struct('Child', {
+        'field1_1': UInt16,
+        'field1_2': UInt16,
+    })
+    data_t = create_union(
+        'Data', {
+            'child1': padded(UInt8, 4),
+            'child2': padded(UInt16, 1),
+            'child3': child_t,
+        })
+
+    assert sizeof(data_t) == 5
+    assert sizeof(data_t['child1']) == 1
+    assert sizeof(data_t['child2']) == 2
+    assert sizeof(data_t['child3']) == 4
+
+    data = data_t(0)
+    data['child2'] = 0x1234
+    assert data['child1'] == 0x34
+    assert bytes(data['child3']) == b'\x34\x12\x00\x00'

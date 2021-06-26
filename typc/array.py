@@ -7,7 +7,7 @@ from typing import (Any, Generic, List, Literal, Optional, Tuple, Type,
 from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
 from ._utils import generic_class_getitem
-from .structure import spec_from_fields
+from .structure import field_to_spec
 
 EL = TypeVar('EL', bound=BaseType)
 SIZE = TypeVar('SIZE', bound=int)
@@ -149,9 +149,9 @@ class ArrayType(TypcType):
     def __init__(self, element_type: TypcType, size: int) -> None:
         self.__typc_element__ = element_type
         self.__typc_count__ = size
-        spec, arr_size = spec_from_fields((element_type, ))
+        spec = field_to_spec(element_type)
         self.__typc_spec__ = BuiltinStruct('<' + spec * size)
-        self.__typc_size__ = arr_size * size
+        self.__typc_size__ = self.__typc_spec__.size
 
     def __call__(
         self,

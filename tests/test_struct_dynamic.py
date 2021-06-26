@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import UInt8, UInt16, create_struct, offsetof, sizeof, typeof
+from typc import (Padding, UInt8, UInt16, create_struct, offsetof, padded,
+                  shifted, sizeof, typeof)
 
 
 def test_declaration() -> None:
@@ -307,3 +308,83 @@ def test_multilevel_assignment() -> None:
     inst['field1'] = (child_t((1, 2)), child_t((3, 4)))
     assert child1_2['a'] == 3
     assert child1_2['b'] == 4
+
+
+def test_padding() -> None:
+    struct_t = create_struct(
+        'SomeStruct', {
+            '_pad1': Padding(2),
+            'field1': UInt8,
+            'field2': UInt16,
+            '_pad2': Padding(1),
+            '_pad3': Padding(1),
+            'field3': UInt16,
+            '_pad4': Padding(2),
+        })
+
+    assert sizeof(struct_t) == 11
+    assert offsetof(struct_t, 'field1') == 2
+    assert offsetof(struct_t, 'field2') == 3
+    assert offsetof(struct_t, 'field3') == 7
+
+    data = struct_t((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x56\x34\x00\x00\x9a\x78\x00\x00'
+
+
+def test_shifted() -> None:
+    struct_t = create_struct(
+        'SomeStruct', {
+            'field1': shifted(UInt8, 1),
+            'field2': UInt16,
+            'field3': shifted(UInt16, 3),
+        })
+
+    assert sizeof(struct_t) == 9
+    assert sizeof(struct_t['field1']) == 1
+    assert sizeof(struct_t['field2']) == 2
+    assert sizeof(struct_t['field3']) == 2
+    assert offsetof(struct_t, 'field1') == 1
+    assert offsetof(struct_t, 'field2') == 2
+    assert offsetof(struct_t, 'field3') == 7
+
+    data = struct_t((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x12\x56\x34\x00\x00\x00\x9a\x78'
+
+
+def test_padded() -> None:
+    struct_t = create_struct(
+        'SomeStruct', {
+            'field1': padded(UInt8, 2),
+            'field2': UInt16,
+            'field3': padded(UInt16, 3),
+        })
+    assert sizeof(struct_t) == 10
+    assert sizeof(struct_t['field1']) == 1
+    assert sizeof(struct_t['field2']) == 2
+    assert sizeof(struct_t['field3']) == 2
+    assert offsetof(struct_t, 'field1') == 0
+    assert offsetof(struct_t, 'field2') == 3
+    assert offsetof(struct_t, 'field3') == 5
+
+    data = struct_t((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x12\x00\x00\x56\x34\x9a\x78\x00\x00\x00'
+
+
+def test_modifiers_classvar() -> None:
+    struct_t = create_struct(
+        'SomeStruct', {
+            'field1': padded(shifted(UInt8, 2), 2),
+            '_pad': Padding(1),
+            'field2': shifted(UInt16, 2),
+            'field3': UInt16(),
+        })
+    assert sizeof(struct_t) == 12
+    assert sizeof(struct_t['field1']) == 1
+    assert sizeof(struct_t['field2']) == 2
+    assert sizeof(struct_t['field3']) == 2
+    assert offsetof(struct_t, 'field1') == 2
+    assert offsetof(struct_t, 'field2') == 8
+    assert offsetof(struct_t, 'field3') == 10
+
+    data = struct_t((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x00\x00\x00\x00\x00\x56\x34\x9a\x78'

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Literal
+from typing_extensions import Annotated
+
 from pytest import raises
-from typc import Struct, UInt8, UInt16, offsetof, sizeof, typeof
+from typc import (Padding, Shift, Struct, UInt8, UInt16, offsetof, padded,
+                  shifted, sizeof, typeof)
 
 
 def test_struct_declaration_annotations() -> None:
@@ -363,3 +367,151 @@ def test_multilevel_assignment() -> None:
 
     assert child1_2.a == 3
     assert child1_2.b == 4
+
+
+def test_padding_annotation() -> None:
+    class SomeStruct(Struct):
+        _pad1: Padding[Literal[2]]
+        field1: UInt8
+        field2: UInt16
+        _pad2: Padding[Literal[1]]
+        _pad3: Padding[Literal[1]]
+        field3: UInt16
+        _pad4: Padding[Literal[2]]
+
+    assert sizeof(SomeStruct) == 11
+    assert offsetof(SomeStruct, 'field1') == 2
+    assert offsetof(SomeStruct, 'field2') == 3
+    assert offsetof(SomeStruct, 'field3') == 7
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x56\x34\x00\x00\x9a\x78\x00\x00'
+
+
+def test_padding_classvar() -> None:
+    class SomeStruct(Struct):
+        _pad1 = Padding(2)
+        field1 = UInt8()
+        field2 = UInt16()
+        _pad2 = Padding(1)
+        _pad3 = Padding(1)
+        field3 = UInt16()
+        _pad4 = Padding(2)
+
+    assert sizeof(SomeStruct) == 11
+    assert offsetof(SomeStruct, 'field1') == 2
+    assert offsetof(SomeStruct, 'field2') == 3
+    assert offsetof(SomeStruct, 'field3') == 7
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x56\x34\x00\x00\x9a\x78\x00\x00'
+
+
+def test_shifted_annotation() -> None:
+    class SomeStruct(Struct):
+        field1: Annotated[UInt8, Shift(1)]
+        field2: UInt16
+        field3: Annotated[UInt16, Shift(3)]
+
+    assert sizeof(SomeStruct) == 9
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 1
+    assert offsetof(SomeStruct, 'field2') == 2
+    assert offsetof(SomeStruct, 'field3') == 7
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x12\x56\x34\x00\x00\x00\x9a\x78'
+
+
+def test_shifted_classvar() -> None:
+    class SomeStruct(Struct):
+        field1 = shifted(UInt8, 1)
+        field2 = UInt16()
+        field3 = shifted(UInt16, 3)
+
+    assert sizeof(SomeStruct) == 9
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 1
+    assert offsetof(SomeStruct, 'field2') == 2
+    assert offsetof(SomeStruct, 'field3') == 7
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x12\x56\x34\x00\x00\x00\x9a\x78'
+
+
+def test_padded_annotation() -> None:
+    class SomeStruct(Struct):
+        field1: Annotated[UInt8, Padding(2)]
+        field2: UInt16
+        field3: Annotated[UInt16, Padding(3)]
+
+    assert sizeof(SomeStruct) == 10
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 0
+    assert offsetof(SomeStruct, 'field2') == 3
+    assert offsetof(SomeStruct, 'field3') == 5
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x12\x00\x00\x56\x34\x9a\x78\x00\x00\x00'
+
+
+def test_padded_classvar() -> None:
+    class SomeStruct(Struct):
+        field1 = padded(UInt8, 2)
+        field2 = UInt16()
+        field3 = padded(UInt16, 3)
+
+    assert sizeof(SomeStruct) == 10
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 0
+    assert offsetof(SomeStruct, 'field2') == 3
+    assert offsetof(SomeStruct, 'field3') == 5
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x12\x00\x00\x56\x34\x9a\x78\x00\x00\x00'
+
+
+def test_modifiers_annotation() -> None:
+    class SomeStruct(Struct):
+        field1: Annotated[UInt8, Padding(2), Shift(2)]
+        _pad: Padding[Literal[1]]
+        field2: Annotated[UInt16, Shift(1), Padding(1)]
+        field3: UInt16
+
+    assert sizeof(SomeStruct) == 12
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 2
+    assert offsetof(SomeStruct, 'field2') == 7
+    assert offsetof(SomeStruct, 'field3') == 10
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x00\x00\x00\x00\x56\x34\x00\x9a\x78'
+
+
+def test_modifiers_classvar() -> None:
+    class SomeStruct(Struct):
+        field1 = padded(shifted(UInt8, 2), 2)
+        _pad = Padding(1)
+        field2 = shifted(padded(UInt16, 1), 1)
+        field3 = UInt16()
+
+    assert sizeof(SomeStruct) == 12
+    assert sizeof(SomeStruct.field1) == 1
+    assert sizeof(SomeStruct.field2) == 2
+    assert sizeof(SomeStruct.field3) == 2
+    assert offsetof(SomeStruct, 'field1') == 2
+    assert offsetof(SomeStruct, 'field2') == 7
+    assert offsetof(SomeStruct, 'field3') == 10
+
+    data = SomeStruct((0x12, 0x3456, 0x789a))
+    assert bytes(data) == b'\x00\x00\x12\x00\x00\x00\x00\x56\x34\x00\x9a\x78'

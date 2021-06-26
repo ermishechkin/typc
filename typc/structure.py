@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
-from struct import calcsize
-from typing import (Any, Dict, Iterable, List, Literal, Optional, Tuple, Type,
-                    TypeVar, Union, cast, overload)
+from typing import (Any, Dict, List, Literal, Optional, Tuple, Type, TypeVar,
+                    Union, cast, overload)
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
-from ._meta import members_from_class
+from ._meta import MAP, MEMBER, members_from_class
+from ._modifier import Modified
+from .modifier import Padding
 
 SELF = TypeVar('SELF', bound='Struct')
 CLASS = TypeVar('CLASS')
@@ -15,11 +16,9 @@ CLASS = TypeVar('CLASS')
 _object_setattr = object.__setattr__
 
 
-def spec_from_fields(fields: Iterable[TypcType]) -> Tuple[str, int]:
-    spec = ''.join(((x.__typc_spec__.format
-                     if isinstance(x, TypcAtomType) else f'{x.__typc_size__}s')
-                    for x in fields))
-    return spec, calcsize('<' + spec)
+def field_to_spec(field: TypcType) -> str:
+    return (field.__typc_spec__.format
+            if isinstance(field, TypcAtomType) else f'{field.__typc_size__}s')
 
 
 class StructType(TypcType):
@@ -27,16 +26,35 @@ class StructType(TypcType):
 
     __typc_members__: Dict[str, Tuple[int, TypcType]]
 
-    def __init__(self, name: str, members: Dict[str, TypcType]) -> None:
+    def __init__(self, name: str, members: MAP) -> None:
         self.__typc_name__ = name
         offset = 0
+        members_dict: Dict[str, Tuple[int, TypcType]]
         members_dict = self.__typc_members__ = {}
+        spec = ''
         for member_name, member_type in members.items():
-            members_dict[member_name] = (offset, member_type)
-            offset += member_type.__typc_size__
-        spec, size = spec_from_fields(members.values())  # type: ignore
+            if isinstance(member_type, TypcType):
+                members_dict[member_name] = (offset, member_type)
+                spec += field_to_spec(member_type)
+                offset += member_type.__typc_size__
+            elif isinstance(member_type, Padding):
+                offset += member_type.__typc_padding__
+                spec += f'{member_type.__typc_padding__}x'
+            else:  # Modified
+                shift = member_type.__typc_shift__
+                real_type = member_type.__typc_real_type__
+                if shift:
+                    offset += shift
+                    spec += f'{shift}x'
+                members_dict[member_name] = (offset, real_type)
+                spec += field_to_spec(real_type)
+                offset += real_type.__typc_size__
+                padding = member_type.__typc_padding__
+                if padding:
+                    offset += padding
+                    spec += f'{padding}x'
         self.__typc_spec__ = BuiltinStruct('<' + spec)
-        self.__typc_size__ = size
+        self.__typc_size__ = self.__typc_spec__.size
 
     def __call__(
         self,
@@ -402,14 +420,15 @@ class UntypedStructValue(_UntypedStruct):
 
 def create_struct(
     name: str,
-    fields: Dict[str, Union[BaseType, Type[BaseType]]],
+    fields: Dict[str, Union[BaseType, Type[BaseType], Type[Padding[Any]],
+                            Padding[Any]]],
 ) -> UntypedStructType:
     if not fields:
         raise ValueError('No members declared')
     fields_: Dict[str, Any] = fields
-    members: Dict[str, TypcType] = {}
+    members: Dict[str, MEMBER] = {}
     for member_name, member_value in fields_.items():
-        if isinstance(member_value, TypcType):
+        if isinstance(member_value, (TypcType, Padding, Modified)):
             members[member_name] = member_value
         elif isinstance(member_value, TypcValue):
             members[member_name] = member_value.__typc_type__

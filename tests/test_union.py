@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Literal
+from typing_extensions import Annotated
+
 from pytest import raises
-from typc import Struct, UInt8, UInt16, Union, sizeof, typeof
+from typc import (Padding, Shift, Struct, UInt8, UInt16, Union, offsetof,
+                  padded, shifted, sizeof, typeof)
 
 
 def test_declaration_annotations() -> None:
@@ -371,3 +375,150 @@ def test_multilevel_assignment() -> None:
     assert child1_2.a == 0xab
     assert child1_2.b == 0xcdab
     assert inst.field2 == 0xcdab
+
+
+def test_padding_annotation() -> None:
+    class Child(Struct):
+        field1: UInt16
+        field2: UInt8
+        field3: UInt8
+
+    class Data(Union):
+        child: Child
+        _pad: Padding[Literal[5]]
+
+    assert sizeof(Data) == 5
+    data = Data(b'\x11\x22\x33\x44\x55')
+    assert data.child.field3 == 0x44
+    assert bytes(data) == b'\x11\x22\x33\x44\x55'
+
+
+def test_padding_classvar() -> None:
+    class Child(Struct):
+        field1 = UInt16()
+        field2 = UInt8()
+        field3 = UInt8()
+
+    class Data(Union):
+        child = Child()
+        _pad = Padding(5)
+
+    assert sizeof(Data) == 5
+    data = Data(b'\x11\x22\x33\x44\x55')
+    assert data.child.field3 == 0x44
+    assert bytes(data) == b'\x11\x22\x33\x44\x55'
+
+
+def test_shifted_annotation() -> None:
+    class Child1(Struct):
+        field1_1: UInt16
+        field1_2: UInt8
+        field1_3: UInt8
+
+    class Child2(Struct):
+        field2_1: UInt8
+        field2_2: UInt16
+        field2_3: UInt8
+
+    class Data(Union):
+        child1: Child1
+        child2: Annotated[Child2, Shift(1)]
+        child3: Annotated[UInt16, Shift(1)]
+
+    assert sizeof(Data) == 5
+    assert offsetof(Data, 'child1') == 0
+    assert offsetof(Data, 'child2') == 1
+    assert offsetof(Data, 'child3') == 1
+
+    data = Data(0)
+    child1 = data.child1
+    data.child2.field2_1 = 0x12
+    assert child1.field1_1 == 0x1200
+    assert data.child3 == 0x12
+    assert bytes(data) == b'\x00\x12\x00\x00\x00'
+
+    child1.field1_2 = 0x34
+    assert child1.field1_2 == 0x34
+    assert data.child3 == 0x3412
+    assert bytes(data) == b'\x00\x12\x34\x00\x00'
+
+
+def test_shifted_classvar() -> None:
+    class Child1(Struct):
+        field1_1 = UInt16()
+        field1_2 = UInt8()
+        field1_3 = UInt8()
+
+    class Child2(Struct):
+        field2_1 = UInt8()
+        field2_2 = UInt16()
+        field2_3 = UInt8()
+
+    class Data(Union):
+        child1 = Child1()
+        child2 = shifted(Child2, 1)
+        child3 = shifted(UInt16, 1)
+
+    assert sizeof(Data) == 5
+    assert offsetof(Data, 'child1') == 0
+    assert offsetof(Data, 'child2') == 1
+    assert offsetof(Data, 'child3') == 1
+
+    data = Data(0)
+    child1 = data.child1
+    data.child2.field2_1 = 0x12
+    assert child1.field1_1 == 0x1200
+    assert data.child3 == 0x12
+    assert bytes(data) == b'\x00\x12\x00\x00\x00'
+
+    child1.field1_2 = 0x34
+    assert data.child2.field2_2 == 0x34
+    assert data.child3 == 0x3412
+    assert bytes(data) == b'\x00\x12\x34\x00\x00'
+
+    child1.field1_1 = 0x5678
+    assert data.child2.field2_1 == 0x56
+    assert data.child3 == 0x3456
+    assert bytes(data) == b'\x78\x56\x34\x00\x00'
+
+
+def test_padded_annotation() -> None:
+    class Child(Struct):
+        field1_1: UInt16
+        field1_2: UInt16
+
+    class Data(Union):
+        child1: Annotated[UInt8, Padding(4)]
+        child2: Annotated[UInt16, Padding(1)]
+        child3: Child
+
+    assert sizeof(Data) == 5
+    assert sizeof(Data.child1) == 1
+    assert sizeof(Data.child2) == 2
+    assert sizeof(Data.child3) == 4
+
+    data = Data(0)
+    data.child2 = 0x1234
+    assert data.child1 == 0x34
+    assert bytes(data.child3) == b'\x34\x12\x00\x00'
+
+
+def test_padded_classvar() -> None:
+    class Child(Struct):
+        field1_1 = UInt16()
+        field1_2 = UInt16()
+
+    class Data(Union):
+        child1 = padded(UInt8, 4)
+        child2 = padded(UInt16, 1)
+        child3 = Child()
+
+    assert sizeof(Data) == 5
+    assert sizeof(Data.child1) == 1
+    assert sizeof(Data.child2) == 2
+    assert sizeof(Data.child3) == 4
+
+    data = Data(0)
+    data.child2 = 0x1234
+    assert data.child1 == 0x34
+    assert bytes(data.child3) == b'\x34\x12\x00\x00'

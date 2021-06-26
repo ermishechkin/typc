@@ -6,6 +6,8 @@ from ._base import BaseType
 from ._impl import TypcType, TypcValue
 from .structure import (Struct, StructType, StructValue, UntypedStructType,
                         UntypedStructValue)
+from .union import Union as UnionT
+from .union import UnionType, UnionValue, UntypedUnionType, UntypedUnionValue
 
 TYPE = TypeVar('TYPE', bound=BaseType)
 
@@ -27,12 +29,13 @@ def sizeof(obj: Union[BaseType, Type[BaseType]]) -> int:
 
 
 def offsetof(
-    obj: Union[Struct, Type[Struct], UntypedStructType, UntypedStructValue],
+    obj: Union[Struct, Type[Struct], UntypedStructType, UntypedStructValue,
+               UnionT, Type[UnionT], UntypedUnionType, UntypedUnionValue],
     field: str,
 ) -> int:
     obj_: Any = obj
-    if isinstance(obj_, StructValue):
+    if isinstance(obj_, (StructValue, UnionValue)):
         return obj_.__typc_type__.__typc_members__[field][0]
-    if isinstance(obj_, StructType):
+    if isinstance(obj_, (StructType, UnionType)):
         return obj_.__typc_members__[field][0]
-    raise TypeError(f'{obj!r} is not struct type/value')
+    raise TypeError(f'{obj!r} is not struct/union type/value')

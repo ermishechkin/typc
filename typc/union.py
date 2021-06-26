@@ -7,7 +7,9 @@ from typing import cast, overload
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcType, TypcValue
-from ._meta import members_from_class
+from ._meta import MAP, MEMBER, members_from_class
+from ._modifier import Modified
+from .modifier import Padding
 
 SELF = TypeVar('SELF', bound='Union')
 CLASS = TypeVar('CLASS')
@@ -18,11 +20,29 @@ _object_setattr = object.__setattr__
 class UnionType(TypcType):
     __slots__ = ('__typc_name__', '__typc_members__')
 
-    def __init__(self, name: str, members: Dict[str, TypcType]) -> None:
+    __typc_members__: Dict[str, Tuple[int, TypcType]]
+
+    def __init__(self, name: str, members: MAP) -> None:
         self.__typc_name__ = name
-        self.__typc_members__ = dict(members)
-        self.__typc_size__ = max(m.__typc_size__ for m in members.values())
-        self.__typc_spec__ = BuiltinStruct(f'<{self.__typc_size__}s')
+        members_dict: Dict[str, Tuple[int, TypcType]]
+        members_dict = self.__typc_members__ = {}
+        max_size = 0
+        for member_name, member_type in members.items():
+            if isinstance(member_type, TypcType):
+                members_dict[member_name] = (0, member_type)
+                member_size = member_type.__typc_size__
+            elif isinstance(member_type, Padding):
+                member_size = member_type.__typc_padding__
+            else:  # Modified
+                shift = member_type.__typc_shift__
+                real_type = member_type.__typc_real_type__
+                members_dict[member_name] = (shift, real_type)
+                member_size = (shift + real_type.__typc_size__ +
+                               member_type.__typc_padding__)
+            if member_size > max_size:
+                max_size = member_size
+        self.__typc_size__ = max_size
+        self.__typc_spec__ = BuiltinStruct(f'<{max_size}s')
 
     def __call__(
         self,
@@ -36,12 +56,12 @@ class UnionType(TypcType):
 
     def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
-            return self.__typc_members__[name]
+            return self.__typc_members__[name][1]
         raise AttributeError
 
     def __getitem__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
-            return self.__typc_members__[name]
+            return self.__typc_members__[name][1]
         raise KeyError
 
 
@@ -92,12 +112,13 @@ class UnionValue(TypcValue):
             raise TypeError
         self.__typc_raw__ = new_value
         values_dict = self.__typc_value__
-        for ((member_name, member_type),
+        for ((member_name, (member_offset, member_type)),
              prev_val) in zip(self_type.__typc_members__.items(),
                               tuple(values_dict.values())):
             if prev_val is None:
                 continue
-            member_raw = new_value[:member_type.__typc_size__]
+            member_raw = new_value[member_offset:member_offset +
+                                   member_type.__typc_size__]
             if isinstance(prev_val, TypcValue):
                 prev_val.__typc_set__(member_raw)
             else:
@@ -115,20 +136,27 @@ class UnionValue(TypcValue):
         prev_raw = self.__typc_raw__
         self.__typc_raw__ = new_raw = (prev_raw[:offset] + data +
                                        prev_raw[offset + len(data):])
-        for name, member_type in self.__typc_type__.__typc_members__.items():
+        for name, (member_offset, member_type) in (
+                self.__typc_type__.__typc_members__.items()):
             member_size = member_type.__typc_size__
-            if offset >= member_size:
+            offset_diff = member_offset - offset
+            if (offset_diff >= len(data)) or (member_size + offset_diff <= 0):
                 continue
             member_value = self.__typc_value__[name]
             if member_value is None:
                 continue
             if isinstance(member_value, TypcValue):
                 if member_value is not exclude:
-                    member_value.__typc_set_part__(data[:member_size - offset],
-                                                   offset)
+                    if member_offset <= offset:
+                        member_value.__typc_set_part__(
+                            data[:member_size + offset_diff], -offset_diff)
+                    else:
+                        member_value.__typc_set_part__(
+                            data[offset_diff:offset_diff + member_size], 0)
             else:
                 (self.__typc_value__[name], ) = (
-                    member_type.__typc_spec__.unpack(new_raw[:member_size]))
+                    member_type.__typc_spec__.unpack(
+                        new_raw[member_offset:member_offset + member_size]))
         if exclude is not None and self.__typc_child_data__ is not None:
             parent, self_offset = self.__typc_child_data__
             parent.__typc_changed__(self, data, self_offset + offset)
@@ -138,9 +166,12 @@ class UnionValue(TypcValue):
             raise AttributeError
         value = self.__typc_value__[name]
         if value is None:
-            member_type = self.__typc_type__.__typc_members__[name]
-            value = member_type(self.__typc_raw__[:member_type.__typc_size__],
-                                (self, 0))
+            member_offset, member_type = (
+                self.__typc_type__.__typc_members__[name])
+            value = member_type(
+                self.__typc_raw__[member_offset:member_offset +
+                                  member_type.__typc_size__],
+                (self, member_offset))
             self.__typc_value__[name] = value
         return value
 
@@ -152,9 +183,9 @@ class UnionValue(TypcValue):
         if name not in values_dict:
             raise AttributeError
         member_value = values_dict[name]
-        member_type = self.__typc_type__.__typc_members__[name]
+        member_offset, member_type = self.__typc_type__.__typc_members__[name]
         if member_value is None:
-            new_value = member_type(value, (self, 0))
+            new_value = member_type(value, (self, member_offset))
             values_dict[name] = new_value
         elif isinstance(member_value, TypcValue):
             member_value.__typc_set__(value)
@@ -163,10 +194,10 @@ class UnionValue(TypcValue):
             new_value = member_type(value)
             values_dict[name] = new_value
         if isinstance(new_value, TypcValue):
-            self._set_part_impl(bytes(new_value), 0, new_value)
+            self._set_part_impl(bytes(new_value), member_offset, new_value)
         else:
-            self._set_part_impl(member_type.__typc_spec__.pack(new_value), 0,
-                                None)
+            self._set_part_impl(member_type.__typc_spec__.pack(new_value),
+                                member_offset, None)
 
     def __getitem__(self, name: str) -> Any:
         try:
@@ -190,7 +221,7 @@ class UnionMeta(type):
         if namespace_dict['__module__'] == __name__:
             return type.__new__(cls, name, bases, namespace_dict)
         members = members_from_class(namespace_dict)
-        return UnionType(name, members)  # type: ignore
+        return UnionType(name, members)
 
 
 class Union(ContainerBase, metaclass=UnionMeta):
@@ -350,14 +381,15 @@ class UntypedUnionValue(_UntypedUnion):
 
 def create_union(
     name: str,
-    fields: Dict[str, TypingUnion[BaseType, Type[BaseType]]],
+    fields: Dict[str, TypingUnion[BaseType, Type[BaseType], Type[Padding[Any]],
+                                  Padding[Any]]],
 ) -> UntypedUnionType:
     if not fields:
         raise ValueError('No members declared')
     fields_: Dict[str, Any] = fields
-    members: Dict[str, TypcType] = {}
+    members: Dict[str, MEMBER] = {}
     for member_name, member_value in fields_.items():
-        if isinstance(member_value, TypcType):
+        if isinstance(member_value, (TypcType, Padding, Modified)):
             members[member_name] = member_value
         elif isinstance(member_value, TypcValue):
             members[member_name] = member_value.__typc_type__
