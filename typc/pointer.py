@@ -10,13 +10,22 @@ from .atom import AtomType
 from .atoms import UInt16, UInt32, UInt64
 
 INT = TypeVar('INT', bound=AtomType[int])
-REF = TypeVar('REF', bound=BaseType)
+REF = TypeVar('REF', bound=Union[BaseType, 'Void'])
+REFX = Union[TypcType, Type['Void']]
+
+
+class Void:
+    pass
 
 
 class PointerType(TypcType):
     __slots__ = ('__typc_int_type__', '__typc_ref_type__')
 
-    def __init__(self, int_type: TypcAtomType, ref_type: TypcType) -> None:
+    def __init__(
+        self,
+        int_type: TypcAtomType,
+        ref_type: REFX,
+    ) -> None:
         self.__typc_int_type__ = int_type
         self.__typc_ref_type__ = ref_type
         self.__typc_spec__ = int_type.__typc_spec__
@@ -32,7 +41,7 @@ class PointerType(TypcType):
     def int_type(self) -> TypcType:
         return self.__typc_int_type__
 
-    def ref_type(self) -> TypcType:
+    def ref_type(self) -> REFX:
         return self.__typc_ref_type__
 
 
@@ -54,7 +63,7 @@ class PointerValue(TypcValue):
     def int_type(self) -> TypcType:
         return self.__typc_type__.__typc_int_type__
 
-    def ref_type(self) -> TypcType:
+    def ref_type(self) -> REFX:
         return self.__typc_type__.__typc_ref_type__
 
     def __bytes__(self) -> bytes:
@@ -193,7 +202,7 @@ class _Pointer(BaseType, Generic[INT, REF]):
             __typc_int_type__ = cast(Type[INT], int_type)
 
             def __class_getitem__(cls, ref_type: Any) -> Any:
-                if isinstance(ref_type, TypcType):
+                if isinstance(ref_type, TypcType) or ref_type is Void:
                     return PointerType(int_type, ref_type)
                 return generic_class_getitem(cls, ref_type)
 
@@ -204,10 +213,13 @@ class _Pointer(BaseType, Generic[INT, REF]):
         type_or_value: Any = None,
         value: Any = None,
     ):
-        if not isinstance(type_or_value, TypcType):
+        ref_type: REFX
+        if isinstance(type_or_value, TypcType) or type_or_value is Void:
+            ref_type = type_or_value
+        else:
             raise TypeError
         pointer_type = PointerType(cast(TypcAtomType, cls.__typc_int_type__),
-                                   type_or_value)
+                                   ref_type)
         pointer_value = PointerValue(pointer_type, value)
         return pointer_value
 

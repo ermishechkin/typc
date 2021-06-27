@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pytest import raises
 from typc import (Pointer16, Pointer32, Struct, UInt8, UInt16, UInt32, UInt64,
-                  Union, sizeof, typeof)
+                  Union, Void, sizeof, typeof)
 
 
 class SomeStruct(Struct):
@@ -201,3 +201,27 @@ def test_union_end() -> None:
 
     inst.twoint.field2 = 0x1234
     assert inst.ptr.get() == 0x12342211
+
+
+def test_void_1() -> None:
+    ptr_t = Pointer32[Void]
+    assert ptr_t.int_type() is UInt32
+    assert ptr_t.ref_type() is Void
+    assert sizeof(ptr_t) == 4
+
+    ptr = ptr_t(0x12)
+    assert ptr.int_type() is UInt32
+    assert ptr.ref_type() is Void
+    assert sizeof(ptr) == 4
+
+
+def test_void_2() -> None:
+    ptr = Pointer32(Void, 0x12)
+    assert ptr.int_type() is UInt32
+    assert ptr.ref_type() is Void
+    assert sizeof(ptr) == 4
+
+    ptr_t = typeof(ptr)
+    assert ptr_t.int_type() is UInt32
+    assert ptr_t.ref_type() is Void
+    assert sizeof(ptr_t) == 4
