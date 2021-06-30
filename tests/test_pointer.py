@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import (Pointer16, Pointer32, Struct, UInt8, UInt16, UInt32, UInt64,
-                  Union, Void, sizeof, typeof)
+from typc import (ForwardRef, Pointer16, Pointer32, Struct, UInt8, UInt16,
+                  UInt32, UInt64, Union, Void, sizeof, typeof)
 
 
 class SomeStruct(Struct):
@@ -225,3 +225,49 @@ def test_void_2() -> None:
     assert ptr_t.int_type() is UInt32
     assert ptr_t.ref_type() is Void
     assert sizeof(ptr_t) == 4
+
+
+def test_forward_annotation() -> None:
+    class StructA(Struct):
+        ptr: Pointer32[ForwardRef]
+
+    class StructB(Struct):
+        field_b: UInt32
+
+    assert StructA.ptr.ref_type() is Void
+
+    StructA.ptr.set_ref_type(StructB)
+    assert StructA.ptr.ref_type() is StructB
+
+
+def test_forward_classvar() -> None:
+    class StructA(Struct):
+        ptr = Pointer32(ForwardRef)
+
+    class StructB(Struct):
+        field_b = UInt32()
+
+    assert StructA.ptr.ref_type() is Void
+
+    StructA.ptr.set_ref_type(StructB)
+    assert StructA.ptr.ref_type() is StructB
+
+
+def test_forward_multiple_updates() -> None:
+    class StructA(Struct):
+        ptr = Pointer32(ForwardRef)
+
+    class StructB(Struct):
+        field_b = UInt32()
+
+    StructA.ptr.set_ref_type(StructB)
+    with raises(TypeError):
+        StructA.ptr.set_ref_type(SomeStruct)
+
+
+def test_forward_bad() -> None:
+    class StructA(Struct):
+        ptr = Pointer32(ForwardRef)
+
+    with raises(TypeError):
+        StructA.ptr.set_ref_type('Bad type')  # type: ignore

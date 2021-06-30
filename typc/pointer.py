@@ -10,11 +10,16 @@ from .atom import AtomType
 from .atoms import UInt16, UInt32, UInt64
 
 INT = TypeVar('INT', bound=AtomType[int])
-REF = TypeVar('REF', bound=Union[BaseType, 'Void'])
+REF = TypeVar('REF', bound=Union[BaseType, 'Void', 'ForwardRef'])
+REFNOFWD = TypeVar('REFNOFWD', bound=Union[BaseType, 'Void'])
 REFX = Union[TypcType, Type['Void']]
 
 
 class Void:
+    pass
+
+
+class ForwardRef:
     pass
 
 
@@ -24,7 +29,7 @@ class PointerType(TypcType):
     def __init__(
         self,
         int_type: TypcAtomType,
-        ref_type: REFX,
+        ref_type: Optional[REFX],
     ) -> None:
         self.__typc_int_type__ = int_type
         self.__typc_ref_type__ = ref_type
@@ -42,7 +47,17 @@ class PointerType(TypcType):
         return self.__typc_int_type__
 
     def ref_type(self) -> REFX:
-        return self.__typc_ref_type__
+        ref_type = self.__typc_ref_type__
+        if ref_type is None:
+            return Void
+        return ref_type
+
+    def set_ref_type(self, new_ref_type: REFX) -> None:
+        if self.__typc_ref_type__ is not None:
+            raise TypeError('Pointer already has type')
+        if not (isinstance(new_ref_type, TypcType) or new_ref_type is Void):
+            raise TypeError(f'{new_ref_type!r} is not valid ref type')
+        self.__typc_ref_type__ = new_ref_type
 
 
 class PointerValue(TypcValue):
@@ -64,7 +79,7 @@ class PointerValue(TypcValue):
         return self.__typc_type__.__typc_int_type__
 
     def ref_type(self) -> REFX:
-        return self.__typc_type__.__typc_ref_type__
+        return self.__typc_type__.ref_type()
 
     def __bytes__(self) -> bytes:
         return self.__typc_type__.__typc_spec__.pack(self.__typc_value__)
@@ -174,8 +189,26 @@ class _Pointer(BaseType, Generic[INT, REF]):
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
+    @overload
     @classmethod
-    def ref_type(cls) -> Type[REF]:
+    def ref_type(cls: Type[_Pointer[INT, REFNOFWD]]) -> Type[REFNOFWD]:
+        ...
+
+    @overload
+    @classmethod
+    def ref_type(
+        cls: Type[_Pointer[INT, ForwardRef]], ) -> Type[Union[BaseType, Void]]:
+        ...
+
+    @classmethod
+    def ref_type(cls: Any) -> Any:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    @classmethod
+    def set_ref_type(cls: Type[_Pointer[INT, ForwardRef]],
+                     new_ref_type: Type[Union[BaseType, Void]]) -> None:
+        # pylint: disable=no-self-use,unused-argument
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
@@ -204,6 +237,8 @@ class _Pointer(BaseType, Generic[INT, REF]):
             def __class_getitem__(cls, ref_type: Any) -> Any:
                 if isinstance(ref_type, TypcType) or ref_type is Void:
                     return PointerType(int_type, ref_type)
+                if ref_type is ForwardRef:
+                    return PointerType(int_type, None)
                 return generic_class_getitem(cls, ref_type)
 
         return PointerSized
@@ -213,9 +248,11 @@ class _Pointer(BaseType, Generic[INT, REF]):
         type_or_value: Any = None,
         value: Any = None,
     ):
-        ref_type: REFX
+        ref_type: Optional[REFX]
         if isinstance(type_or_value, TypcType) or type_or_value is Void:
             ref_type = type_or_value
+        elif type_or_value is ForwardRef:
+            ref_type = None
         else:
             raise TypeError
         pointer_type = PointerType(cast(TypcAtomType, cls.__typc_int_type__),
