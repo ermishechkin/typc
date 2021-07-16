@@ -92,6 +92,9 @@ def test_sizeof() -> None:
     arr = data.field
     assert sizeof(arr_t) == 8
     assert sizeof(arr) == 8
+    assert arr_t.length() == 4
+    assert arr.length() == 4
+    assert len(arr) == 4
 
 
 def test_typeof() -> None:
@@ -102,6 +105,8 @@ def test_typeof() -> None:
     arr_t = SomeStruct.field
     arr = data.field
     assert typeof(arr) is arr_t
+    assert arr_t.item_type() is UInt16
+    assert arr.item_type() is UInt16
 
 
 def test_array_as_struct_member_simple() -> None:

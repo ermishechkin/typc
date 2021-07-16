@@ -57,6 +57,16 @@ class Array(Generic[EL, SIZE], BaseType):
         # pylint: disable=super-init-not-called
         raise NotImplementedError
 
+    @classmethod
+    def item_type(cls: Type[Array[EL, SIZE]]) -> Type[EL]:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    @classmethod
+    def length(cls) -> int:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
     @overload
     def __get__(self, owner: Literal[None],
                 inst: Type[ContainerBase]) -> Type[Array[EL, SIZE]]:
@@ -127,6 +137,10 @@ class Array(Generic[EL, SIZE], BaseType):
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
+    def __len__(self) -> int:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
     def __typc_set__(self, value: Any) -> None:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
@@ -152,6 +166,12 @@ class ArrayType(TypcType):
         spec = field_to_spec(element_type)
         self.__typc_spec__ = BuiltinStruct('<' + spec * size)
         self.__typc_size__ = self.__typc_spec__.size
+
+    def item_type(self) -> TypcType:
+        return self.__typc_element__
+
+    def length(self) -> int:
+        return self.__typc_count__
 
     def __call__(
         self,
@@ -197,6 +217,12 @@ class ArrayValue(TypcValue):
             ) for idx, val in enumerate(values_tuple)
         ]
         self.__typc_inited__ = True
+
+    def item_type(self) -> TypcType:
+        return self.__typc_type__.__typc_element__
+
+    def length(self) -> int:
+        return self.__typc_type__.__typc_count__
 
     def __getitem__(self, index: int) -> Union[TypcValue, Any]:
         if not self.__typc_inited__:
@@ -247,6 +273,9 @@ class ArrayValue(TypcValue):
             else:
                 raw_value.append(value)
         return self.__typc_type__.__typc_spec__.pack(*raw_value)
+
+    def __len__(self) -> int:
+        return self.__typc_type__.__typc_count__
 
     def __typc_set__(self, value: Any) -> None:
         if not self.__typc_inited__:
