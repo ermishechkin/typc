@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
-from typing import Any, Dict, Literal, Optional, Tuple, Type, TypeVar
+from typing import Any, Dict, Iterator, Literal, Optional, Tuple, Type, TypeVar
 from typing import Union as TypingUnion
 from typing import cast, overload
 
@@ -63,6 +63,15 @@ class UnionType(TypcType):
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]
         raise KeyError
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__typc_members__)
+
+    def __len__(self) -> int:
+        return len(self.__typc_members__)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.__typc_members__
 
 
 UNION_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__', '__typc_value__',
@@ -211,17 +220,37 @@ class UnionValue(TypcValue):
         except AttributeError:
             raise KeyError from None
 
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__typc_type__.__typc_members__)
+
+    def __len__(self) -> int:
+        return len(self.__typc_type__.__typc_members__)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.__typc_type__.__typc_members__
+
     def __bytes__(self) -> bytes:
         return self.__typc_raw__
 
 
 class UnionMeta(type):
+    # pylint: disable=bad-mcs-method-argument
+
     def __new__(cls, name: str, bases: Tuple[type, ...],
                 namespace_dict: Dict[str, Any]):
         if namespace_dict['__module__'] == __name__:
             return type.__new__(cls, name, bases, namespace_dict)
         members = members_from_class(namespace_dict)
         return UnionType(name, members)
+
+    def __iter__(self) -> Iterator[str]:
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    def __contains__(self, name: str) -> bool:
+        raise NotImplementedError
 
 
 class Union(ContainerBase, metaclass=UnionMeta):
@@ -291,6 +320,18 @@ class _UntypedUnion(BaseType):
         raise NotImplementedError
 
     def __bytes__(self) -> bytes:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __iter__(self) -> Iterator[str]:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __contains__(self, name: str) -> bool:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 

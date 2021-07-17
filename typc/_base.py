@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Type, TypeVar, Union, overload
+from typing import (Any, Iterator, Literal, Optional, Type, TypeVar, Union,
+                    overload)
 
 SELF = TypeVar('SELF', bound='ContainerBase')
 CLASS = TypeVar('CLASS')
@@ -50,6 +51,18 @@ class ContainerBase(BaseType):
 
     def __get__(self: SELF, owner: Optional[Any],
                 inst: Type[Any]) -> Union[Type[SELF], SELF]:
+        raise NotImplementedError
+
+    def __iter__(self) -> Iterator[str]:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __contains__(self, name: str) -> bool:
+        ...  # mark as non-abstract for pylint
         raise NotImplementedError
 
     def __typc_set__(self, value: Any) -> None:

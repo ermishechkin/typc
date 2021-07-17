@@ -515,3 +515,28 @@ def test_modifiers_classvar() -> None:
 
     data = SomeStruct((0x12, 0x3456, 0x789a))
     assert bytes(data) == b'\x00\x00\x12\x00\x00\x00\x00\x56\x34\x00\x9a\x78'
+
+
+def test_type_as_container() -> None:
+    class SomeStruct(Struct):
+        fieldA: UInt16
+        fieldC: UInt8
+        fieldB: UInt16
+
+    assert tuple(SomeStruct) == ('fieldA', 'fieldC', 'fieldB')
+    assert len(SomeStruct) == 3
+    assert ('fieldB' in SomeStruct) is True
+    assert ('fieldZ' in SomeStruct) is False
+
+
+def test_value_as_container() -> None:
+    class SomeStruct(Struct):
+        fieldA: UInt16
+        fieldC: UInt8
+        fieldB: UInt16
+
+    data = SomeStruct(0)
+    assert tuple(data) == ('fieldA', 'fieldC', 'fieldB')
+    assert len(data) == 3
+    assert ('fieldB' in data) is True
+    assert ('fieldZ' in data) is False

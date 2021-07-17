@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
-from typing import (Any, Dict, List, Literal, Optional, Tuple, Type, TypeVar,
-                    Union, cast, overload)
+from typing import (Any, Dict, Iterator, List, Literal, Optional, Tuple, Type,
+                    TypeVar, Union, cast, overload)
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
@@ -75,6 +75,15 @@ class StructType(TypcType):
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]
         raise KeyError
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__typc_members__)
+
+    def __len__(self) -> int:
+        return len(self.__typc_members__)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.__typc_members__
 
 
 STRUCT_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__',
@@ -235,6 +244,15 @@ class StructValue(TypcValue):
         except AttributeError:
             raise KeyError from None
 
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__typc_type__.__typc_members__)
+
+    def __len__(self) -> int:
+        return len(self.__typc_type__.__typc_members__)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.__typc_type__.__typc_members__
+
     def __bytes__(self) -> bytes:
         if not self.__typc_inited__:
             self._zero_init()
@@ -248,12 +266,23 @@ class StructValue(TypcValue):
 
 
 class StructMeta(type):
+    # pylint: disable=bad-mcs-method-argument
+
     def __new__(cls, name: str, bases: Tuple[type, ...],
                 namespace_dict: Dict[str, Any]):
         if namespace_dict['__module__'] == __name__:
             return type.__new__(cls, name, bases, namespace_dict)
         members = members_from_class(namespace_dict)
         return StructType(name, members)
+
+    def __iter__(self) -> Iterator[str]:
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    def __contains__(self, name: str) -> bool:
+        raise NotImplementedError
 
 
 class Struct(ContainerBase, metaclass=StructMeta):
@@ -330,6 +359,18 @@ class _UntypedStruct(BaseType):
         raise NotImplementedError
 
     def __bytes__(self) -> bytes:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __iter__(self) -> Iterator[str]:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        ...  # mark as non-abstract for pylint
+        raise NotImplementedError
+
+    def __contains__(self, name: str) -> bool:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 

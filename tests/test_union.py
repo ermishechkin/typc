@@ -522,3 +522,28 @@ def test_padded_classvar() -> None:
     data.child2 = 0x1234
     assert data.child1 == 0x34
     assert bytes(data.child3) == b'\x34\x12\x00\x00'
+
+
+def test_type_as_container() -> None:
+    class SomeUnion(Union):
+        fieldA: UInt16
+        fieldC: UInt8
+        fieldB: UInt16
+
+    assert tuple(SomeUnion) == ('fieldA', 'fieldC', 'fieldB')
+    assert len(SomeUnion) == 3
+    assert ('fieldB' in SomeUnion) is True
+    assert ('fieldZ' in SomeUnion) is False
+
+
+def test_value_as_container() -> None:
+    class SomeUnion(Union):
+        fieldA: UInt16
+        fieldC: UInt8
+        fieldB: UInt16
+
+    data = SomeUnion(0)
+    assert tuple(data) == ('fieldA', 'fieldC', 'fieldB')
+    assert len(data) == 3
+    assert ('fieldB' in data) is True
+    assert ('fieldZ' in data) is False
