@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pytest import raises
 from typc import (Padding, Struct, UInt8, UInt16, create_struct, create_union,
-                  offsetof, padded, shifted, sizeof, typeof)
+                  offsetof, padded, shifted, sizeof, type_name, typeof)
 
 
 def test_declaration() -> None:
@@ -78,6 +78,17 @@ def test_typeof() -> None:
 
     data = data_t(0)
     assert typeof(data) is data_t
+
+
+def test_name() -> None:
+    data_t = create_union('Data', {
+        'u16': UInt16,
+        'u8': UInt8,
+    })
+
+    data = data_t(0)
+    assert type_name(data_t) == 'Data'
+    assert type_name(data) == 'Data'
 
 
 def test_init_zero() -> None:

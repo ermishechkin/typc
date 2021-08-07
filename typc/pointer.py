@@ -43,6 +43,12 @@ class PointerType(TypcType):
     ) -> PointerValue:
         return PointerValue(self, values, child_data)
 
+    def __typc_get_name__(self) -> str:
+        ref_type = self.__typc_ref_type__
+        if isinstance(ref_type, TypcType):
+            return f'{ref_type.__typc_get_name__()} *'
+        return 'void *'
+
     def int_type(self) -> TypcType:
         return self.__typc_int_type__
 

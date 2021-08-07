@@ -5,7 +5,7 @@ from typing_extensions import Annotated
 
 from pytest import raises
 from typc import (Padding, Shift, Struct, UInt8, UInt16, offsetof, padded,
-                  shifted, sizeof, typeof)
+                  shifted, sizeof, type_name, typeof)
 
 
 def test_struct_declaration_annotations() -> None:
@@ -159,6 +159,17 @@ def test_offsetof_value() -> None:
     assert offsetof(data, 'field3') == 3
     with raises(KeyError):
         offsetof(data, 'bad_field')
+
+
+def test_name() -> None:
+    class SomeStruct(Struct):
+        field1: UInt8
+        field2: UInt16
+        field3: UInt16
+
+    data = SomeStruct(0)
+    assert type_name(SomeStruct) == 'SomeStruct'
+    assert type_name(data) == 'SomeStruct'
 
 
 def test_init_zero() -> None:

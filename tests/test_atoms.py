@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Float, Struct, UInt16, sizeof
+from typc import Float, Struct, UInt16, sizeof, type_name
 
 
 def test_zero_init() -> None:
@@ -62,3 +62,10 @@ def test_type_sizeof() -> None:
         field: UInt16
 
     assert sizeof(SomeStruct.field) == 2
+
+
+def test_name() -> None:
+    class SomeStruct(Struct):
+        field: UInt16
+
+    assert type_name(SomeStruct.field) == 'uint16_t'

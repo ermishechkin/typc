@@ -16,7 +16,8 @@ class AtomMeta(type):
                 namespace_dict: Dict[str, Any]):
         if namespace_dict['__module__'] == __name__:
             return type.__new__(cls, name, bases, namespace_dict)
-        return TypcAtomType(namespace_dict['__typc_spec__'],
+        return TypcAtomType(namespace_dict['__typc_name__'],
+                            namespace_dict['__typc_spec__'],
                             namespace_dict['__typc_size__'],
                             namespace_dict['__typc_native__'])
 

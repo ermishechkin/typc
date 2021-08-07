@@ -5,7 +5,7 @@ from typing_extensions import Annotated
 
 from pytest import raises
 from typc import (Padding, Shift, Struct, UInt8, UInt16, Union, offsetof,
-                  padded, shifted, sizeof, typeof)
+                  padded, shifted, sizeof, type_name, typeof)
 
 
 def test_declaration_annotations() -> None:
@@ -134,6 +134,16 @@ def test_typeof() -> None:
 
     data = Data(0)
     assert typeof(data) is Data
+
+
+def test_name() -> None:
+    class Data(Union):
+        u16: UInt16
+        u8: UInt8
+
+    data = Data(0)
+    assert type_name(Data) == 'Data'
+    assert type_name(data) == 'Data'
 
 
 def test_init_zero() -> None:

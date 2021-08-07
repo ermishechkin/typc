@@ -66,6 +66,9 @@ class StructType(TypcType):
             return StructValue(self, None, child_data)
         return StructValue(self, values, child_data)
 
+    def __typc_get_name__(self) -> str:
+        return self.__typc_name__
+
     def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]

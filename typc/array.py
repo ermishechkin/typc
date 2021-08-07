@@ -181,6 +181,11 @@ class ArrayType(TypcType):
     ) -> ArrayValue:
         return ArrayValue(self, values, child_data)
 
+    def __typc_get_name__(self) -> str:
+        el_type_name = self.__typc_element__.__typc_get_name__()
+        el_count = self.__typc_count__
+        return f'{el_type_name}[{el_count}]'
+
 
 class ArrayValue(TypcValue):
     __slots__ = ('__typc_inited__', '__typc_value__')

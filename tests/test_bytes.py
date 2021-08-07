@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Literal
 
 from pytest import raises
-from typc import Bytes, Struct, UInt16, UInt32, UInt64, Union, sizeof, typeof
+from typc import (Bytes, Struct, UInt16, UInt32, UInt64, Union, sizeof,
+                  type_name, typeof)
 
 
 def test_create_getitem_type() -> None:
@@ -78,6 +79,20 @@ def test_init_bad_3() -> None:
 def test_init_bad_4() -> None:
     with raises(TypeError):
         _ = Bytes('5', b'\x11\x22\x33\x44\x55')  # type: ignore
+
+
+def test_name_1() -> None:
+    bytes_t = Bytes[Literal[5]]
+    data = bytes_t(0)
+    assert type_name(bytes_t) == 'char[5]'
+    assert type_name(data) == 'char[5]'
+
+
+def test_name_2() -> None:
+    data = Bytes(5, b'abcde')
+    bytes_t = typeof(data)
+    assert type_name(bytes_t) == 'char[5]'
+    assert type_name(data) == 'char[5]'
 
 
 def test_getitem() -> None:

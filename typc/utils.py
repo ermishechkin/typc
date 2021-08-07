@@ -39,3 +39,12 @@ def offsetof(
     if isinstance(obj_, (StructType, UnionType)):
         return obj_.__typc_members__[field][0]
     raise TypeError(f'{obj!r} is not struct/union type/value')
+
+
+def type_name(obj: Union[BaseType, Type[BaseType]]) -> str:
+    obj_: Any = obj
+    if isinstance(obj_, TypcType):
+        return obj_.__typc_get_name__()
+    if isinstance(obj_, TypcValue):
+        return obj_.__typc_type__.__typc_get_name__()
+    raise TypeError(f'{obj!r} is not typc type/value')

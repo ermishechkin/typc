@@ -16,6 +16,9 @@ class TypcType:
     ) -> TypcValue:
         raise NotImplementedError
 
+    def __typc_get_name__(self) -> str:
+        raise NotImplementedError
+
 
 class TypcValue:
     __slots__ = ('__typc_type__', '__typc_child_data__')
@@ -37,12 +40,14 @@ class TypcValue:
 
 
 class TypcAtomType(TypcType):
-    __slots__ = ('__typc_native__', )
+    __slots__ = ('__typc_native__', '__typc_name__')
     __typc_native__: type
 
-    def __init__(self, spec: str, size: int, native_type: type) -> None:
+    def __init__(self, name: str, spec: str, size: int,
+                 native_type: type) -> None:
         self.__typc_spec__ = BuiltinStruct(spec)
         self.__typc_size__ = size
+        self.__typc_name__ = name
         self.__typc_native__ = native_type
 
     def __call__(
@@ -59,3 +64,6 @@ class TypcAtomType(TypcType):
         if isinstance(values, bytes):
             return self.__typc_spec__.unpack(values)[0]
         raise TypeError
+
+    def __typc_get_name__(self) -> str:
+        return self.__typc_name__

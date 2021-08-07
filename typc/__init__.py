@@ -6,7 +6,7 @@ from .modifier import Padding, Shift, padded, shifted
 from .pointer import ForwardRef, Pointer16, Pointer32, Pointer64, Void
 from .structure import Struct, create_struct
 from .union import Union, create_union
-from .utils import offsetof, sizeof, typeof
+from .utils import offsetof, sizeof, type_name, typeof
 
 __all__ = (
     'Array',
@@ -36,5 +36,6 @@ __all__ = (
     'padded',
     'shifted',
     'sizeof',
+    'type_name',
     'typeof',
 )
