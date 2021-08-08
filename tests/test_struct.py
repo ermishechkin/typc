@@ -4,8 +4,8 @@ from typing import Literal
 from typing_extensions import Annotated
 
 from pytest import raises
-from typc import (Padding, Shift, Struct, UInt8, UInt16, offsetof, padded,
-                  shifted, sizeof, type_name, typeof)
+from typc import (Padding, Shift, Struct, UInt8, UInt16, clone_type, offsetof,
+                  padded, shifted, sizeof, type_name, typeof)
 
 
 def test_struct_declaration_annotations() -> None:
@@ -170,6 +170,23 @@ def test_name() -> None:
     data = SomeStruct(0)
     assert type_name(SomeStruct) == 'SomeStruct'
     assert type_name(data) == 'SomeStruct'
+
+
+def test_clone() -> None:
+    class SomeStruct(Struct):
+        field1: UInt8
+        field2: UInt16
+        field3: UInt16
+
+    clone = clone_type(SomeStruct)
+    data = clone(0)
+    assert clone is not SomeStruct
+    assert sizeof(clone) == 5
+    assert type_name(clone) == 'SomeStruct'
+    assert tuple(i for i in clone) == ('field1', 'field2', 'field3')
+    assert offsetof(clone, 'field3') == 3
+    assert 'field4' not in clone
+    assert bytes(data) == b'\x00\x00\x00\x00\x00'
 
 
 def test_init_zero() -> None:

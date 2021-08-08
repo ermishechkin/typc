@@ -57,6 +57,14 @@ class UnionType(TypcType):
     def __typc_get_name__(self) -> str:
         return self.__typc_name__
 
+    def __typc_clone__(self) -> UnionType:
+        new_type: UnionType = UnionType.__new__(UnionType)
+        new_type.__typc_spec__ = self.__typc_spec__
+        new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_name__ = self.__typc_name__
+        new_type.__typc_members__ = self.__typc_members__
+        return new_type
+
     def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]

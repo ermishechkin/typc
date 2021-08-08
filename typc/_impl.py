@@ -19,6 +19,9 @@ class TypcType:
     def __typc_get_name__(self) -> str:
         raise NotImplementedError
 
+    def __typc_clone__(self) -> TypcType:
+        raise NotImplementedError
+
 
 class TypcValue:
     __slots__ = ('__typc_type__', '__typc_child_data__')
@@ -67,3 +70,11 @@ class TypcAtomType(TypcType):
 
     def __typc_get_name__(self) -> str:
         return self.__typc_name__
+
+    def __typc_clone__(self) -> TypcAtomType:
+        new_type: TypcAtomType = TypcAtomType.__new__(TypcAtomType)
+        new_type.__typc_spec__ = self.__typc_spec__
+        new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_name__ = self.__typc_name__
+        new_type.__typc_native__ = self.__typc_native__
+        return new_type

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Float, Struct, UInt16, sizeof, type_name
+from typc import Float, Struct, UInt16, clone_type, sizeof, type_name
 
 
 def test_zero_init() -> None:
@@ -69,3 +69,13 @@ def test_name() -> None:
         field: UInt16
 
     assert type_name(SomeStruct.field) == 'uint16_t'
+
+
+def test_clone() -> None:
+    clone = clone_type(Float)
+    data = clone(0)
+    assert clone is not Float
+    assert sizeof(clone) == 4
+    assert type_name(clone) == 'float'
+    assert isinstance(data, float)
+    assert data == 0.0

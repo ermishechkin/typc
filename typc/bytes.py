@@ -134,6 +134,12 @@ class BytesType(TypcType):
     def __typc_get_name__(self) -> str:
         return f'char[{self.__typc_size__}]'
 
+    def __typc_clone__(self) -> BytesType:
+        new_type: BytesType = BytesType.__new__(BytesType)
+        new_type.__typc_spec__ = self.__typc_spec__
+        new_type.__typc_size__ = self.__typc_size__
+        return new_type
+
 
 class BytesValue(TypcValue):
     __slots__ = ('__typc_value__', )

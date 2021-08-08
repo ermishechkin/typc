@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pytest import raises
 from typc import (ForwardRef, Pointer16, Pointer32, Struct, UInt8, UInt16,
-                  UInt32, UInt64, Union, Void, sizeof, type_name, typeof)
+                  UInt32, UInt64, Union, Void, clone_type, sizeof, type_name,
+                  typeof)
 
 
 class SomeStruct(Struct):
@@ -129,6 +130,18 @@ def test_name_fwdred() -> None:
     ptr_t = typeof(data)
     assert type_name(ptr_t) == 'void *'
     assert type_name(data) == 'void *'
+
+
+def test_clone() -> None:
+    ptr_t = Pointer16[UInt32]
+    clone = clone_type(ptr_t)
+    data = clone(0)
+    assert clone is not ptr_t
+    assert sizeof(clone) == 2
+    assert clone.int_type() is UInt16
+    assert clone.ref_type() is UInt32
+    assert type_name(clone) == 'uint32_t *'
+    assert bytes(data) == b'\x00\x00'
 
 
 def test_bytes_cast() -> None:

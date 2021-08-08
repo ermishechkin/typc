@@ -4,8 +4,8 @@ from typing import Literal
 from typing_extensions import Annotated
 
 from pytest import raises
-from typc import (Padding, Shift, Struct, UInt8, UInt16, Union, offsetof,
-                  padded, shifted, sizeof, type_name, typeof)
+from typc import (Padding, Shift, Struct, UInt8, UInt16, Union, clone_type,
+                  offsetof, padded, shifted, sizeof, type_name, typeof)
 
 
 def test_declaration_annotations() -> None:
@@ -144,6 +144,22 @@ def test_name() -> None:
     data = Data(0)
     assert type_name(Data) == 'Data'
     assert type_name(data) == 'Data'
+
+
+def test_clone() -> None:
+    class Data(Union):
+        u16: UInt16
+        u8: UInt8
+
+    clone = clone_type(Data)
+    data = clone(0)
+    assert clone is not Data
+    assert sizeof(clone) == 2
+    assert type_name(clone) == 'Data'
+    assert tuple(i for i in clone) == ('u16', 'u8')
+    assert offsetof(clone, 'u16') == 0
+    assert 'u32' not in clone
+    assert bytes(data) == b'\x00\x00'
 
 
 def test_init_zero() -> None:

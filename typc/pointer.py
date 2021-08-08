@@ -49,6 +49,14 @@ class PointerType(TypcType):
             return f'{ref_type.__typc_get_name__()} *'
         return 'void *'
 
+    def __typc_clone__(self) -> PointerType:
+        new_type: PointerType = PointerType.__new__(PointerType)
+        new_type.__typc_spec__ = self.__typc_spec__
+        new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_int_type__ = self.__typc_int_type__
+        new_type.__typc_ref_type__ = self.__typc_ref_type__
+        return new_type
+
     def int_type(self) -> TypcType:
         return self.__typc_int_type__
 

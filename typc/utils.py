@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar, Union, cast
+from typing import Any, Type, TypeVar, Union, cast, overload
 
 from ._base import BaseType
 from ._impl import TypcType, TypcValue
@@ -48,3 +48,26 @@ def type_name(obj: Union[BaseType, Type[BaseType]]) -> str:
     if isinstance(obj_, TypcValue):
         return obj_.__typc_type__.__typc_get_name__()
     raise TypeError(f'{obj!r} is not typc type/value')
+
+
+@overload
+def clone_type(orig: UntypedStructType) -> UntypedStructType:
+    ...
+
+
+@overload
+def clone_type(orig: UntypedUnionType) -> UntypedUnionType:
+    ...
+
+
+@overload
+def clone_type(orig: Type[TYPE]) -> Type[TYPE]:
+    ...
+
+
+def clone_type(orig: Any) -> Any:
+    obj_: Any = orig
+    if not isinstance(obj_, TypcType):
+        raise TypeError(f'{orig!r} is not typc type')
+    new_type = obj_.__typc_clone__()
+    return new_type

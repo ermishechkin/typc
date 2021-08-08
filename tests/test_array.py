@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Literal
 
 from pytest import raises
-from typc import Array, Struct, UInt8, UInt16, sizeof, type_name, typeof
+from typc import (Array, Struct, UInt8, UInt16, clone_type, sizeof, type_name,
+                  typeof)
 
 
 def test_array_init() -> None:
@@ -114,6 +115,15 @@ def test_name() -> None:
     arr_t = typeof(data)
     assert type_name(arr_t) == 'uint16_t[4]'
     assert type_name(data) == 'uint16_t[4]'
+
+
+def test_clone() -> None:
+    arr_t = typeof(Array(UInt16, 4))
+    clone = clone_type(arr_t)
+    assert clone is not arr_t
+    assert clone.item_type() is UInt16
+    assert clone.length() == 4
+    assert type_name(clone) == 'uint16_t[4]'
 
 
 def test_array_as_struct_member_simple() -> None:

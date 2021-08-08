@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Struct, UInt8, UInt16, offsetof, sizeof, type_name, typeof
+from typc import (Struct, UInt8, UInt16, clone_type, offsetof, sizeof,
+                  type_name, typeof)
 
 
 def test_sizeof_type() -> None:
@@ -57,3 +58,8 @@ def test_offsetof_bad() -> None:
 def test_type_name_bad() -> None:
     with raises(TypeError):
         _ = type_name('Invalid value')  # type: ignore
+
+
+def test_clone_bad() -> None:
+    with raises(TypeError):
+        _ = clone_type('Invalid value')  # type: ignore

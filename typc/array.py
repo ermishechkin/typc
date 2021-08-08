@@ -186,6 +186,14 @@ class ArrayType(TypcType):
         el_count = self.__typc_count__
         return f'{el_type_name}[{el_count}]'
 
+    def __typc_clone__(self) -> ArrayType:
+        new_type: ArrayType = ArrayType.__new__(ArrayType)
+        new_type.__typc_spec__ = self.__typc_spec__
+        new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_element__ = self.__typc_element__
+        new_type.__typc_count__ = self.__typc_count__
+        return new_type
+
 
 class ArrayValue(TypcValue):
     __slots__ = ('__typc_inited__', '__typc_value__')

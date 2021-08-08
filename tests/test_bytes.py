@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Literal
 
 from pytest import raises
-from typc import (Bytes, Struct, UInt16, UInt32, UInt64, Union, sizeof,
-                  type_name, typeof)
+from typc import (Bytes, Struct, UInt16, UInt32, UInt64, Union, clone_type,
+                  sizeof, type_name, typeof)
 
 
 def test_create_getitem_type() -> None:
@@ -93,6 +93,16 @@ def test_name_2() -> None:
     bytes_t = typeof(data)
     assert type_name(bytes_t) == 'char[5]'
     assert type_name(data) == 'char[5]'
+
+
+def test_clone() -> None:
+    bytes_t = Bytes[Literal[5]]
+    clone = clone_type(bytes_t)
+    data = clone(0)
+    assert clone is not bytes_t
+    assert sizeof(clone) == 5
+    assert type_name(clone) == 'char[5]'
+    assert bytes(data) == b'\x00\x00\x00\x00\x00'
 
 
 def test_getitem() -> None:
