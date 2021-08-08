@@ -125,6 +125,12 @@ def test_clone() -> None:
     assert clone.length() == 4
     assert type_name(clone) == 'uint16_t[4]'
 
+    clone2 = clone_type(clone, name='uint16x4')
+    assert type_name(clone2) == 'uint16x4'
+
+    clone3 = clone_type(clone2)
+    assert type_name(clone3) == 'uint16x4'
+
 
 def test_array_as_struct_member_simple() -> None:
     class SomeStruct(Struct):

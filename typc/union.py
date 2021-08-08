@@ -18,9 +18,10 @@ _object_setattr = object.__setattr__
 
 
 class UnionType(TypcType):
-    __slots__ = ('__typc_name__', '__typc_members__')
+    __slots__ = ('__typc_members__', )
 
     __typc_members__: Dict[str, Tuple[int, TypcType]]
+    __typc_name__: str
 
     def __init__(self, name: str, members: MAP) -> None:
         self.__typc_name__ = name

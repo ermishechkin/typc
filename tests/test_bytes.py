@@ -104,6 +104,12 @@ def test_clone() -> None:
     assert type_name(clone) == 'char[5]'
     assert bytes(data) == b'\x00\x00\x00\x00\x00'
 
+    clone2 = clone_type(clone, name='str_5')
+    assert type_name(clone2) == 'str_5'
+
+    clone3 = clone_type(clone2)
+    assert type_name(clone3) == 'str_5'
+
 
 def test_getitem() -> None:
     data = Bytes(6, b'abcdef')

@@ -143,6 +143,12 @@ def test_clone() -> None:
     assert type_name(clone) == 'uint32_t *'
     assert bytes(data) == b'\x00\x00'
 
+    clone2 = clone_type(clone, name='PUINT32')
+    assert type_name(clone2) == 'PUINT32'
+
+    clone3 = clone_type(clone2)
+    assert type_name(clone3) == 'PUINT32'
+
 
 def test_bytes_cast() -> None:
     ptr = Pointer32(SomeStruct, 0x1234)

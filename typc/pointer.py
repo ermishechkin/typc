@@ -30,11 +30,13 @@ class PointerType(TypcType):
         self,
         int_type: TypcAtomType,
         ref_type: Optional[REFX],
+        name: Optional[str],
     ) -> None:
         self.__typc_int_type__ = int_type
         self.__typc_ref_type__ = ref_type
         self.__typc_spec__ = int_type.__typc_spec__
         self.__typc_size__ = int_type.__typc_size__
+        self.__typc_name__ = name
 
     def __call__(
         self,
@@ -44,15 +46,18 @@ class PointerType(TypcType):
         return PointerValue(self, values, child_data)
 
     def __typc_get_name__(self) -> str:
-        ref_type = self.__typc_ref_type__
-        if isinstance(ref_type, TypcType):
-            return f'{ref_type.__typc_get_name__()} *'
-        return 'void *'
+        if self.__typc_name__ is None:
+            ref_type = self.__typc_ref_type__
+            if isinstance(ref_type, TypcType):
+                return f'{ref_type.__typc_get_name__()} *'
+            return 'void *'
+        return self.__typc_name__
 
     def __typc_clone__(self) -> PointerType:
         new_type: PointerType = PointerType.__new__(PointerType)
         new_type.__typc_spec__ = self.__typc_spec__
         new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_name__ = self.__typc_name__
         new_type.__typc_int_type__ = self.__typc_int_type__
         new_type.__typc_ref_type__ = self.__typc_ref_type__
         return new_type
@@ -250,9 +255,9 @@ class _Pointer(BaseType, Generic[INT, REF]):
 
             def __class_getitem__(cls, ref_type: Any) -> Any:
                 if isinstance(ref_type, TypcType) or ref_type is Void:
-                    return PointerType(int_type, ref_type)
+                    return PointerType(int_type, ref_type, None)
                 if ref_type is ForwardRef:
-                    return PointerType(int_type, None)
+                    return PointerType(int_type, None, None)
                 return generic_class_getitem(cls, ref_type)
 
         return PointerSized
@@ -270,7 +275,7 @@ class _Pointer(BaseType, Generic[INT, REF]):
         else:
             raise TypeError
         pointer_type = PointerType(cast(TypcAtomType, cls.__typc_int_type__),
-                                   ref_type)
+                                   ref_type, None)
         pointer_value = PointerValue(pointer_type, value)
         return pointer_value
 

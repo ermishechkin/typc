@@ -79,3 +79,9 @@ def test_clone() -> None:
     assert type_name(clone) == 'float'
     assert isinstance(data, float)
     assert data == 0.0
+
+    clone2 = clone_type(clone, name='Float')
+    assert type_name(clone2) == 'Float'
+
+    clone3 = clone_type(clone2)
+    assert type_name(clone3) == 'Float'

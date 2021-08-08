@@ -88,7 +88,7 @@ class Bytes(Generic[SIZE], BaseType):
     def __class_getitem__(cls, size: Any) -> Any:
         # pylint: disable=arguments-differ
         if hasattr(size, '__args__'):
-            return BytesType(size.__args__[0])
+            return BytesType(size.__args__[0], None)
         return generic_class_getitem(cls, size)
 
     def __bytes__(self) -> bytes:
@@ -109,7 +109,7 @@ class Bytes(Generic[SIZE], BaseType):
         value: Any = None,
     ):
         if isinstance(type_or_value, int):
-            bytes_type = BytesType(type_or_value)
+            bytes_type = BytesType(type_or_value, None)
             return BytesValue(bytes_type, value)
         raise TypeError
 
@@ -117,9 +117,10 @@ class Bytes(Generic[SIZE], BaseType):
 class BytesType(TypcType):
     __slots__ = ()
 
-    def __init__(self, size: int) -> None:
+    def __init__(self, size: int, name: Optional[str]) -> None:
         self.__typc_spec__ = BuiltinStruct(f'{size}s')
         self.__typc_size__ = size
+        self.__typc_name__ = name
 
     def length(self) -> int:
         return self.__typc_size__
@@ -132,12 +133,15 @@ class BytesType(TypcType):
         return BytesValue(self, values, child_data)
 
     def __typc_get_name__(self) -> str:
-        return f'char[{self.__typc_size__}]'
+        if self.__typc_name__ is None:
+            return f'char[{self.__typc_size__}]'
+        return self.__typc_name__
 
     def __typc_clone__(self) -> BytesType:
         new_type: BytesType = BytesType.__new__(BytesType)
         new_type.__typc_spec__ = self.__typc_spec__
         new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_name__ = self.__typc_name__
         return new_type
 
 

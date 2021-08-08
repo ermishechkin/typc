@@ -63,3 +63,8 @@ def test_type_name_bad() -> None:
 def test_clone_bad() -> None:
     with raises(TypeError):
         _ = clone_type('Invalid value')  # type: ignore
+
+
+def test_clone_bad_name() -> None:
+    with raises(TypeError):
+        _ = clone_type(UInt16, name=123)  # type: ignore

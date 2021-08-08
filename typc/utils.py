@@ -50,24 +50,36 @@ def type_name(obj: Union[BaseType, Type[BaseType]]) -> str:
     raise TypeError(f'{obj!r} is not typc type/value')
 
 
+INHERITED = cast(Any, object())
+
+
 @overload
-def clone_type(orig: UntypedStructType) -> UntypedStructType:
+def clone_type(orig: UntypedStructType,
+               *,
+               name: str = INHERITED) -> UntypedStructType:
     ...
 
 
 @overload
-def clone_type(orig: UntypedUnionType) -> UntypedUnionType:
+def clone_type(orig: UntypedUnionType,
+               *,
+               name: str = INHERITED) -> UntypedUnionType:
     ...
 
 
 @overload
-def clone_type(orig: Type[TYPE]) -> Type[TYPE]:
+def clone_type(orig: Type[TYPE], *, name: str = INHERITED) -> Type[TYPE]:
     ...
 
 
-def clone_type(orig: Any) -> Any:
+def clone_type(orig: Any, *, name: str = INHERITED) -> Any:
     obj_: Any = orig
     if not isinstance(obj_, TypcType):
         raise TypeError(f'{orig!r} is not typc type')
     new_type = obj_.__typc_clone__()
+    if name is not INHERITED:
+        name_: Any = name
+        if not isinstance(name_, str):
+            raise TypeError(f'Type name must be str, not {name_!r}')
+        new_type.__typc_name__ = name
     return new_type

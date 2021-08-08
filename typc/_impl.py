@@ -5,9 +5,10 @@ from typing import Any, Literal, Optional, Tuple, Union, cast
 
 
 class TypcType:
-    __slots__ = ('__typc_size__', '__typc_spec__')
+    __slots__ = ('__typc_size__', '__typc_spec__', '__typc_name__')
     __typc_spec__: BuiltinStruct
     __typc_size__: int
+    __typc_name__: Optional[str]
 
     def __call__(
         self,
@@ -43,8 +44,9 @@ class TypcValue:
 
 
 class TypcAtomType(TypcType):
-    __slots__ = ('__typc_native__', '__typc_name__')
+    __slots__ = ('__typc_native__', )
     __typc_native__: type
+    __typc_name__: str
 
     def __init__(self, name: str, spec: str, size: int,
                  native_type: type) -> None:

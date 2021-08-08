@@ -130,7 +130,7 @@ class Array(Generic[EL, SIZE], BaseType):
         if isinstance(el_type, TypcType) and hasattr(size_literal, '__args__'):
             size = size_literal.__args__[0]
             if isinstance(size, int):
-                return ArrayType(el_type, size)
+                return ArrayType(el_type, size, None)
         return generic_class_getitem(cls, args)
 
     def __bytes__(self) -> bytes:
@@ -152,7 +152,7 @@ class Array(Generic[EL, SIZE], BaseType):
         values: Any = None,
     ) -> Array[EL, SIZE]:
         # pylint: disable=arguments-differ
-        array_type = ArrayType(cast(TypcType, element_type), size)
+        array_type = ArrayType(cast(TypcType, element_type), size, None)
         array_value = ArrayValue(array_type, values)
         return cast(Array[EL, SIZE], array_value)
 
@@ -160,12 +160,14 @@ class Array(Generic[EL, SIZE], BaseType):
 class ArrayType(TypcType):
     __slots__ = ('__typc_element__', '__typc_count__')
 
-    def __init__(self, element_type: TypcType, size: int) -> None:
+    def __init__(self, element_type: TypcType, size: int,
+                 name: Optional[str]) -> None:
         self.__typc_element__ = element_type
         self.__typc_count__ = size
         spec = field_to_spec(element_type)
         self.__typc_spec__ = BuiltinStruct('<' + spec * size)
         self.__typc_size__ = self.__typc_spec__.size
+        self.__typc_name__ = name
 
     def item_type(self) -> TypcType:
         return self.__typc_element__
@@ -182,14 +184,17 @@ class ArrayType(TypcType):
         return ArrayValue(self, values, child_data)
 
     def __typc_get_name__(self) -> str:
-        el_type_name = self.__typc_element__.__typc_get_name__()
-        el_count = self.__typc_count__
-        return f'{el_type_name}[{el_count}]'
+        if self.__typc_name__ is None:
+            el_type_name = self.__typc_element__.__typc_get_name__()
+            el_count = self.__typc_count__
+            return f'{el_type_name}[{el_count}]'
+        return self.__typc_name__
 
     def __typc_clone__(self) -> ArrayType:
         new_type: ArrayType = ArrayType.__new__(ArrayType)
         new_type.__typc_spec__ = self.__typc_spec__
         new_type.__typc_size__ = self.__typc_size__
+        new_type.__typc_name__ = self.__typc_name__
         new_type.__typc_element__ = self.__typc_element__
         new_type.__typc_count__ = self.__typc_count__
         return new_type
