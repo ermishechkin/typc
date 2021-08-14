@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import (Struct, UInt8, UInt16, clone_type, offsetof, sizeof,
+from typc import (Struct, UInt8, UInt16, clone_type, offsetof, rename, sizeof,
                   type_name, typeof)
 
 
@@ -68,3 +68,24 @@ def test_clone_bad() -> None:
 def test_clone_bad_name() -> None:
     with raises(TypeError):
         _ = clone_type(UInt16, name=123)  # type: ignore
+
+
+def test_rename() -> None:
+    class SomeStruct(Struct):
+        field: UInt8
+
+    rename(SomeStruct, 'AnotherName')
+    assert type_name(SomeStruct) == 'AnotherName'
+
+
+def test_rename_bad() -> None:
+    with raises(TypeError):
+        rename('Invalid value', 'bad_t')  # type: ignore
+
+
+def test_rename_bad_name() -> None:
+    class SomeStruct(Struct):
+        field: UInt8
+
+    with raises(TypeError):
+        rename(SomeStruct, name=123)  # type: ignore

@@ -83,3 +83,13 @@ def clone_type(orig: Any, *, name: str = INHERITED) -> Any:
             raise TypeError(f'Type name must be str, not {name_!r}')
         new_type.__typc_name__ = name
     return new_type
+
+
+def rename(type_: Union[Type[TYPE], UntypedStructType, UntypedUnionType],
+           name: str) -> None:
+    name_: Any = name
+    if not isinstance(type_, TypcType):
+        raise TypeError(f'{type_!r} is not typc type')
+    if not isinstance(name_, str):
+        raise TypeError(f'Type name must be str, not {name_!r}')
+    type_.__typc_name__ = name
