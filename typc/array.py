@@ -15,44 +15,30 @@ SIZE = TypeVar('SIZE', bound=int)
 
 class Array(Generic[EL, SIZE], BaseType):
     @overload
-    def __init__(self,
-                 typ: Type[EL],
-                 size: SIZE,
-                 values: Literal[None] = None) -> None:
-        ...
-
-    @overload
-    def __init__(self, typ: Type[EL], size: SIZE, values: Literal[0]) -> None:
-        ...
-
-    @overload
-    def __init__(self, typ: Type[EL], size: SIZE, values: bytes) -> None:
-        ...
-
-    @overload
     def __init__(
         self,
-        typ: Type[EL],
+        type_or_value: Type[EL],
         size: SIZE,
-        values: Tuple[Any, ...],
+        values: Union[Literal[0], Literal[None], bytes, Tuple[Any, ...],
+                      Array[EL, Any]] = None,
     ) -> None:
         ...
 
     @overload
     def __init__(
         self,
-        typ: Type[EL],
-        size: SIZE,
-        values: Array[EL, Any],
+        type_or_value: Union[Literal[0], Literal[None], bytes, Tuple[Any, ...],
+                             Array[EL, Any]] = None,
+        size: Literal[None] = None,
+        values: Literal[None] = None,
     ) -> None:
         ...
 
     def __init__(
         self,
-        typ: Type[EL],
-        size: SIZE,
-        values: Union[bytes, Tuple[Any, ...], Literal[None], Array[EL, Any],
-                      Literal[0]] = None,
+        type_or_value: Any = None,
+        size: Optional[SIZE] = None,
+        values: Any = None,
     ) -> None:
         # pylint: disable=super-init-not-called
         raise NotImplementedError
@@ -147,14 +133,16 @@ class Array(Generic[EL, SIZE], BaseType):
 
     def __new__(
         cls,
-        element_type: Type[EL],
-        size: SIZE,
+        element_type: Any = None,
+        size: Any = None,
         values: Any = None,
-    ) -> Array[EL, SIZE]:
+    ):
         # pylint: disable=arguments-differ
-        array_type = ArrayType(cast(TypcType, element_type), size, None)
-        array_value = ArrayValue(array_type, values)
-        return cast(Array[EL, SIZE], array_value)
+        if isinstance(element_type, TypcType) and isinstance(size, int):
+            array_type = ArrayType(element_type, size, None)
+            array_value = ArrayValue(array_type, values)
+            return cast(Array[EL, SIZE], array_value)
+        raise TypeError
 
 
 class ArrayType(TypcType):

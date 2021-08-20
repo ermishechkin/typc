@@ -30,7 +30,31 @@ def test_array_init() -> None:
     assert bytes(array) == b'\x01\x02\x03\x04'
 
     with raises(TypeError):
+        Array(int, 4, b'\x01\x02\x03\x04')  # type: ignore
+
+    with raises(TypeError):
         Array(UInt8, 4, 'bad value')  # type: ignore
+
+
+def test_array_init_getitem() -> None:
+    arr_t = Array[UInt16, Literal[3]]
+
+    arr1 = arr_t(b'\x11\x22\x33\x44\x55\x66')
+    assert arr1[0] == 0x2211
+    assert arr1[1] == 0x4433
+    assert arr1[2] == 0x6655
+
+    arr2 = arr_t((0x1122, 0x3344, 0x5566))
+    assert bytes(arr2) == b'\x22\x11\x44\x33\x66\x55'
+
+    arr3 = arr_t(Array(UInt16, 3, (0x1122, 0x3344, 0x5566)))
+    assert bytes(arr3) == b'\x22\x11\x44\x33\x66\x55'
+
+
+def test_array_init_getitem_bad() -> None:
+    with raises(TypeError):
+        arr_t = Array[int, Literal[3]]  # type: ignore
+        arr_t((1, 2, 3))  # type: ignore
 
 
 def test_array_atom_item_modifications() -> None:
