@@ -62,6 +62,13 @@ class PointerType(TypcType):
         new_type.__typc_ref_type__ = self.__typc_ref_type__
         return new_type
 
+    def __eq__(self, obj: object) -> bool:
+        if obj is self:
+            return True
+        return (isinstance(obj, PointerType)
+                and obj.__typc_int_type__ == self.__typc_int_type__
+                and obj.__typc_ref_type__ == self.__typc_ref_type__)
+
     def int_type(self) -> TypcType:
         return self.__typc_int_type__
 

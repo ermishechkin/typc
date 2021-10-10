@@ -78,6 +78,13 @@ class StructType(TypcType):
         new_type.__typc_members__ = self.__typc_members__
         return new_type
 
+    def __eq__(self, obj: object) -> bool:
+        if obj is self:
+            return True
+        return (isinstance(obj, StructType)
+                and tuple(obj.__typc_members__.items()) == tuple(
+                    self.__typc_members__.items()))
+
     def __getattr__(self, name: str) -> TypcType:
         if name in self.__typc_members__:
             return self.__typc_members__[name][1]

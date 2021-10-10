@@ -144,6 +144,10 @@ class BytesType(TypcType):
         new_type.__typc_name__ = self.__typc_name__
         return new_type
 
+    def __eq__(self, obj: object) -> bool:
+        return (isinstance(obj, BytesType)
+                and obj.__typc_size__ == self.__typc_size__)
+
 
 class BytesValue(TypcValue):
     __slots__ = ('__typc_value__', )

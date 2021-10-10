@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import Float, Struct, UInt16, clone_type, sizeof, type_name
+from typc import (Float, Int16, Struct, UInt8, UInt16, clone_type, sizeof,
+                  type_name)
 
 
 def test_zero_init() -> None:
@@ -85,3 +86,17 @@ def test_clone() -> None:
 
     clone3 = clone_type(clone2)
     assert type_name(clone3) == 'Float'
+
+
+def test_eq() -> None:
+    assert UInt16 == UInt16  # pylint: disable=comparison-with-itself
+    assert UInt16 != UInt8
+    assert UInt16 != Int16
+    assert UInt16 != Float
+    assert UInt16 != int
+
+    clone16 = clone_type(UInt16, name='UInt')
+    assert UInt16 == clone16
+
+    clone8 = clone_type(UInt8)
+    assert UInt16 != clone8

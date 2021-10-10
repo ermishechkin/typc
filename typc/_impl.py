@@ -23,6 +23,9 @@ class TypcType:
     def __typc_clone__(self) -> TypcType:
         raise NotImplementedError
 
+    def __eq__(self, obj: object) -> bool:
+        raise NotImplementedError
+
 
 class TypcValue:
     __slots__ = ('__typc_type__', '__typc_child_data__')
@@ -80,3 +83,7 @@ class TypcAtomType(TypcType):
         new_type.__typc_name__ = self.__typc_name__
         new_type.__typc_native__ = self.__typc_native__
         return new_type
+
+    def __eq__(self, obj: object) -> bool:
+        return (isinstance(obj, TypcAtomType)
+                and obj.__typc_spec__.format == self.__typc_spec__.format)

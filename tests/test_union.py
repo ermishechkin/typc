@@ -573,3 +573,39 @@ def test_value_as_container() -> None:
     assert len(data) == 3
     assert ('fieldB' in data) is True
     assert ('fieldZ' in data) is False
+
+
+def test_eq() -> None:
+    class UnionA(Union):
+        field1: UInt8
+        field2: UInt16
+
+    class UnionB(Union):
+        field1: UInt16
+        field2: UInt8
+
+    class UnionC(Union):
+        field2: UInt16
+        field1: UInt8
+
+    class UnionD(Union):
+        field1: UInt8
+        field2: UInt16
+        field3: UInt16
+
+    uint16_clone = clone_type(UInt16, name='UInt')
+
+    class UnionE(Union):
+        field1 = UInt8()
+        field2 = uint16_clone()
+
+    assert UnionA == UnionA  # pylint: disable=comparison-with-itself
+    assert UnionA != UnionB
+    assert UnionA == UnionC
+    assert UnionA != UnionD
+    assert UnionA == UnionE
+    assert UnionB != UnionC
+
+    assert UnionA != UInt8
+    assert UnionA != Struct
+    assert UnionA != type

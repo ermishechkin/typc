@@ -318,3 +318,23 @@ def test_forward_bad() -> None:
 
     with raises(TypeError):
         StructA.ptr.set_ref_type('Bad type')  # type: ignore
+
+
+def test_eq() -> None:
+    uint16_clone = clone_type(UInt16, name='UInt')
+
+    ptr_a = Pointer16[UInt16]
+    ptr_b = Pointer16[UInt32]
+    ptr_c = Pointer32[UInt16]
+    ptr_d = clone_type(ptr_a, name='Ptr')
+    ptr_e = typeof(Pointer16(uint16_clone))
+
+    assert ptr_a == ptr_a  # pylint: disable=comparison-with-itself
+    assert ptr_a != ptr_b
+    assert ptr_a != ptr_c
+    assert ptr_a == ptr_d
+    assert ptr_a == ptr_e
+
+    assert ptr_a != Pointer16
+    assert ptr_a != UInt16
+    assert ptr_a != type

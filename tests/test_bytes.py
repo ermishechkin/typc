@@ -273,3 +273,17 @@ def test_union_src() -> None:
 
     inst.data[2] = b'\x77'
     assert inst.u32 == 0x44772211
+
+
+def test_eq() -> None:
+    bytes16 = typeof(Bytes(16))
+    bytes8 = typeof(Bytes(8))
+    bytes16_clone = clone_type(bytes16, name='bytes16')
+
+    assert bytes16 == bytes16  # pylint: disable=comparison-with-itself
+    assert bytes16 != bytes8
+    assert bytes16 == bytes16_clone
+
+    assert bytes16 != UInt16
+    assert bytes16 != Bytes
+    assert bytes16 != bytes

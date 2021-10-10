@@ -233,3 +233,18 @@ def test_array_uninitialized_reset_member() -> None:
     inst = SomeStruct()
     inst.field2 = Array(UInt8, 4, (0x11, 0x22, 0x33, 0x44))
     assert bytes(inst) == b'\x00\x11\x22\x33\x44\x00\x00'
+
+
+def test_eq() -> None:
+    arr1_t = typeof(Array(UInt16, 4))
+    arr2_t = typeof(Array(UInt8, 4))
+    arr3_t = typeof(Array(UInt8, 8))
+    arr4_t = typeof(Array(UInt16, 4))
+    assert arr1_t == arr1_t  # pylint: disable=comparison-with-itself
+    assert arr1_t != arr2_t
+    assert arr1_t != arr3_t
+    assert arr1_t == arr4_t
+
+    assert arr1_t != UInt16
+    assert arr1_t != Array
+    assert arr1_t != list

@@ -187,6 +187,13 @@ class ArrayType(TypcType):
         new_type.__typc_count__ = self.__typc_count__
         return new_type
 
+    def __eq__(self, obj: object) -> bool:
+        if obj is self:
+            return True
+        return (isinstance(obj, ArrayType)
+                and obj.__typc_count__ == self.__typc_count__
+                and obj.__typc_element__ == self.__typc_element__)
+
 
 class ArrayValue(TypcValue):
     __slots__ = ('__typc_inited__', '__typc_value__')
