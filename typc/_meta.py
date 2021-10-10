@@ -103,4 +103,4 @@ def members_from_class(cls_dict: Dict[str, Any]) -> MAP:
     return members
 
 
-CLS_MEMBERS = ('__annotations__', '__module__', '__qualname__')
+CLS_MEMBERS = ('__annotations__', '__module__', '__qualname__', '__doc__')
