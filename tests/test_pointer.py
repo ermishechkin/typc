@@ -338,3 +338,70 @@ def test_eq() -> None:
     assert ptr_a != Pointer16
     assert ptr_a != UInt16
     assert ptr_a != type
+
+
+def test_typechecks_meta() -> None:
+    ptr_t = Pointer32[SomeStruct]
+    ptr = ptr_t(0)
+
+    assert not isinstance(Pointer32, Pointer32)
+    assert issubclass(Pointer32, Pointer32)
+
+    assert not isinstance(ptr_t, Pointer32)
+    assert issubclass(ptr_t, Pointer32)
+
+    assert isinstance(ptr, Pointer32)
+    with raises(TypeError):
+        issubclass(ptr, Pointer32)  # type: ignore
+
+    assert not isinstance(0, Pointer32)
+    with raises(TypeError):
+        issubclass(0, Pointer32)  # type: ignore
+
+
+def test_typechecks_meta_another() -> None:
+    ptr_t = Pointer32[SomeStruct]
+    ptr = ptr_t(0)
+
+    assert not isinstance(Pointer32, Pointer16)
+    assert not issubclass(Pointer32, Pointer16)
+
+    assert not isinstance(ptr_t, Pointer16)
+    assert not issubclass(ptr_t, Pointer16)
+
+    assert not isinstance(ptr, Pointer16)
+    with raises(TypeError):
+        issubclass(ptr, Pointer16)  # type: ignore
+
+
+def test_typechecks_type() -> None:
+    ptr = Pointer32(SomeStruct, 0)
+    ptr_t = typeof(ptr)
+
+    assert not isinstance(Pointer32, ptr_t)
+    assert not issubclass(Pointer32, ptr_t)
+
+    assert not isinstance(ptr_t, ptr_t)
+    assert issubclass(ptr_t, ptr_t)
+
+    assert isinstance(ptr, ptr_t)
+    with raises(TypeError):
+        issubclass(ptr, ptr_t)  # type: ignore
+
+    assert not isinstance(0, ptr_t)
+    with raises(TypeError):
+        issubclass(0, ptr_t)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    ptr1 = Pointer32(SomeStruct, 0)
+    ptr2 = Pointer32(UInt16, 0)
+    ptr1_t = typeof(ptr1)
+    ptr2_t = typeof(ptr2)
+
+    assert not isinstance(ptr1_t, ptr2_t)
+    assert not issubclass(ptr1_t, ptr2_t)
+
+    assert not isinstance(ptr1, ptr2_t)
+    with raises(TypeError):
+        issubclass(ptr1, ptr2_t)  # type: ignore

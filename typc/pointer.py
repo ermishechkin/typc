@@ -5,7 +5,7 @@ from typing import (Any, Generic, Literal, Optional, Tuple, Type, TypeVar,
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
-from ._utils import generic_class_getitem
+from ._utils import false_isinstance, false_issubclass, generic_class_getitem
 from .atom import AtomType
 from .atoms import UInt16, UInt32, UInt64
 
@@ -85,6 +85,16 @@ class PointerType(TypcType):
             raise TypeError(f'{new_ref_type!r} is not valid ref type')
         self.__typc_ref_type__ = new_ref_type
 
+    def __instancecheck__(self, instance: Any) -> bool:
+        if isinstance(instance, PointerValue):
+            return instance.__typc_type__ == self
+        return false_isinstance(instance)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        if isinstance(subclass, PointerType):
+            return subclass == self
+        return false_issubclass(subclass)
+
 
 class PointerValue(TypcValue):
     __slots__ = ('__typc_value__', )
@@ -146,7 +156,23 @@ class PointerValue(TypcValue):
         raise NotImplementedError
 
 
-class _Pointer(BaseType, Generic[INT, REF]):
+class PointerMeta(type):
+    def __subclasscheck__(cls, subclass: Any) -> bool:
+        if subclass is cls:
+            return True
+        if isinstance(subclass, PointerType):
+            return subclass.__typc_int_type__ == getattr(
+                cls, '__typc_int_type__')
+        return false_issubclass(subclass)
+
+    def __instancecheck__(cls, instance: Any) -> bool:
+        if isinstance(instance, PointerValue):
+            return instance.__typc_type__.__typc_int_type__ == getattr(
+                cls, '__typc_int_type__')
+        return false_isinstance(instance)
+
+
+class _Pointer(BaseType, Generic[INT, REF], metaclass=PointerMeta):
     __typc_int_type__: Type[INT]
 
     @overload

@@ -248,3 +248,73 @@ def test_eq() -> None:
     assert arr1_t != UInt16
     assert arr1_t != Array
     assert arr1_t != list
+
+
+def test_typechecks_meta() -> None:
+    arr_v = Array(UInt16, 5)
+    arr_t = typeof(arr_v)
+
+    assert not isinstance(Array, Array)
+    assert issubclass(Array, Array)
+
+    assert not isinstance(arr_t, Array)
+    assert issubclass(arr_t, Array)
+
+    assert isinstance(arr_v, Array)
+    with raises(TypeError):
+        issubclass(arr_v, Array)  # type: ignore
+
+    assert not isinstance('string', Array)
+    with raises(TypeError):
+        issubclass('string', Array)  # type: ignore
+
+
+def test_typechecks_type() -> None:
+    arr_v = Array(UInt16, 5)
+    arr_t = typeof(arr_v)
+
+    assert not isinstance(Array, arr_t)
+    assert not issubclass(Array, arr_t)
+
+    assert not isinstance(arr_t, arr_t)
+    assert issubclass(arr_t, arr_t)
+
+    assert isinstance(arr_v, arr_t)
+    with raises(TypeError):
+        issubclass(arr_v, arr_t)  # type: ignore
+
+    assert not isinstance('string', arr_t)
+    with raises(TypeError):
+        issubclass('string', arr_t)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    arr1_v = Array(UInt16, 5)
+    arr1_t = typeof(arr1_v)
+
+    arr2_v = Array(UInt8, 3)
+    arr2_t = typeof(arr2_v)
+
+    assert not isinstance(arr2_t, arr1_t)
+    assert not issubclass(arr2_t, arr1_t)
+
+    assert not isinstance(arr2_v, arr1_t)
+    with raises(TypeError):
+        issubclass(arr2_v, arr1_t)  # type: ignore
+
+
+def test_typechecks_type_equal() -> None:
+    arr1_v = Array(UInt16, 5)
+    arr1_t = typeof(arr1_v)
+
+    arr2_v = Array(UInt16, 5)
+    arr2_t = typeof(arr2_v)
+
+    assert arr1_t is not arr2_t
+
+    assert not isinstance(arr2_t, arr1_t)
+    assert issubclass(arr2_t, arr1_t)
+
+    assert isinstance(arr2_v, arr1_t)
+    with raises(TypeError):
+        issubclass(arr2_v, arr1_t)  # type: ignore

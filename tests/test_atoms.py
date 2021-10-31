@@ -100,3 +100,32 @@ def test_eq() -> None:
 
     clone8 = clone_type(UInt8)
     assert UInt16 != clone8
+
+
+def test_typechecks_type() -> None:
+    clone16 = clone_type(UInt16, name='Word')
+    value = clone16(0x1234)
+
+    assert not isinstance(clone16, UInt16)
+    assert issubclass(clone16, UInt16)
+
+    assert isinstance(value, UInt16)
+    with raises(TypeError):
+        issubclass(value, UInt16)  # type: ignore
+
+    assert not isinstance(b'string', UInt16)
+    with raises(TypeError):
+        issubclass(b'string', UInt16)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    type_w = clone_type(UInt16, name='Word')
+    type_f = clone_type(Float, name='Float')
+    value_w = type_w(0x1234)
+
+    assert not isinstance(type_w, type_f)
+    assert not issubclass(type_w, type_f)
+
+    assert not isinstance(value_w, type_f)
+    with raises(TypeError):
+        issubclass(value_w, type_f)  # type: ignore

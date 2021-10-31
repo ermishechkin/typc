@@ -1,19 +1,60 @@
 from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
-from typing import (Any, Generic, List, Literal, Optional, Tuple, Type,
-                    TypeVar, Union, cast, overload)
+from typing import (Any, Dict, Generic, List, Literal, Optional, Tuple, Type,
+                    TypeVar, Union, overload)
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcAtomType, TypcType, TypcValue
-from ._utils import generic_class_getitem
+from ._utils import false_isinstance, false_issubclass, generic_class_getitem
 from .structure import field_to_spec
 
 EL = TypeVar('EL', bound=BaseType)
 SIZE = TypeVar('SIZE', bound=int)
 
 
-class Array(Generic[EL, SIZE], BaseType):
+class ArrayMeta(type):
+    def __new__(cls, _name: str, _bases: Tuple[type, ...],
+                _namespace_dict: Dict[str, Any]):
+        return ArrayBase[Any, Any]()
+
+
+class ArrayBase(Generic[EL, SIZE]):
+    __slots__ = ()
+
+    def __call__(
+        self,
+        element_type: Any,
+        size: Any,
+        values: Any = None,
+    ) -> ArrayValue:
+        if isinstance(element_type, TypcType) and isinstance(size, int):
+            array_type = ArrayType(element_type, size, None)
+            return ArrayValue(array_type, values)
+        raise TypeError
+
+    def __getitem__(self, args: Tuple[Any, ...]) -> Any:
+        el_type, size_literal = args
+        if isinstance(el_type, TypcType) and hasattr(size_literal, '__args__'):
+            size = size_literal.__args__[0]
+            if isinstance(size, int):
+                return ArrayType(el_type, size, None)
+        return generic_class_getitem(self, args)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if type(subclass) is ArrayType or subclass is self:
+            return True
+        return false_issubclass(subclass)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if type(instance) is ArrayValue:
+            return True
+        return false_isinstance(instance)
+
+
+class Array(Generic[EL, SIZE], BaseType, metaclass=ArrayMeta):
     @overload
     def __init__(
         self,
@@ -110,15 +151,6 @@ class Array(Generic[EL, SIZE], BaseType):
     ) -> None:
         raise NotImplementedError
 
-    def __class_getitem__(cls, args: Tuple[Any, ...]) -> Any:
-        # pylint: disable=arguments-differ
-        el_type, size_literal = args
-        if isinstance(el_type, TypcType) and hasattr(size_literal, '__args__'):
-            size = size_literal.__args__[0]
-            if isinstance(size, int):
-                return ArrayType(el_type, size, None)
-        return generic_class_getitem(cls, args)
-
     def __bytes__(self) -> bytes:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
@@ -130,19 +162,6 @@ class Array(Generic[EL, SIZE], BaseType):
     def __typc_set__(self, value: Any) -> None:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
-
-    def __new__(
-        cls,
-        element_type: Any = None,
-        size: Any = None,
-        values: Any = None,
-    ):
-        # pylint: disable=arguments-differ
-        if isinstance(element_type, TypcType) and isinstance(size, int):
-            array_type = ArrayType(element_type, size, None)
-            array_value = ArrayValue(array_type, values)
-            return cast(Array[EL, SIZE], array_value)
-        raise TypeError
 
 
 class ArrayType(TypcType):
@@ -193,6 +212,18 @@ class ArrayType(TypcType):
         return (isinstance(obj, ArrayType)
                 and obj.__typc_count__ == self.__typc_count__
                 and obj.__typc_element__ == self.__typc_element__)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        if isinstance(instance, ArrayValue):
+            return instance.__typc_type__ == self
+        return false_isinstance(instance)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        if isinstance(subclass, ArrayType):
+            return subclass == self
+        if subclass is Array:
+            return False
+        return false_issubclass(subclass)
 
 
 class ArrayValue(TypcValue):

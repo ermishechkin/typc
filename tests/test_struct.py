@@ -604,3 +604,66 @@ def test_eq() -> None:
     assert StructA != UInt8
     assert StructA != Struct
     assert StructA != type
+
+
+def test_typechecks_meta() -> None:
+    class Pos(Struct):
+        x: UInt16
+        y: UInt16
+
+    pos = Pos(0)
+
+    assert not isinstance(Struct, Struct)
+    assert issubclass(Struct, Struct)
+
+    assert not isinstance(Pos, Struct)
+    assert issubclass(Pos, Struct)
+
+    assert isinstance(pos, Struct)
+    with raises(TypeError):
+        issubclass(pos, Struct)  # type: ignore
+
+    assert not isinstance(b'string', Struct)
+    with raises(TypeError):
+        issubclass(b'string', Struct)  # type: ignore
+
+
+def test_typechecks_type() -> None:
+    class Pos(Struct):
+        x: UInt16
+        y: UInt16
+
+    pos = Pos(0)
+
+    assert not isinstance(Struct, Pos)
+    assert not issubclass(Struct, Pos)
+
+    assert not isinstance(Pos, Pos)
+    assert issubclass(Pos, Pos)
+
+    assert isinstance(pos, Pos)
+    with raises(TypeError):
+        issubclass(pos, Pos)  # type: ignore
+
+    assert not isinstance(b'string', Pos)
+    with raises(TypeError):
+        issubclass(b'string', Pos)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    class Pos1(Struct):
+        x: UInt16
+        y: UInt16
+
+    class Pos2(Struct):
+        x: UInt8
+        y: UInt8
+
+    pos1 = Pos1(0)
+
+    assert not isinstance(Pos1, Pos2)
+    assert not issubclass(Pos1, Pos2)
+
+    assert not isinstance(pos1, Pos2)
+    with raises(TypeError):
+        issubclass(pos1, Pos2)  # type: ignore

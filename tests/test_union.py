@@ -609,3 +609,66 @@ def test_eq() -> None:
     assert UnionA != UInt8
     assert UnionA != Struct
     assert UnionA != type
+
+
+def test_typechecks_meta() -> None:
+    class SomeUnion(Union):
+        field1: UInt8
+        field2: UInt16
+
+    value = SomeUnion(0)
+
+    assert not isinstance(Union, Union)
+    assert issubclass(Union, Union)
+
+    assert not isinstance(SomeUnion, Union)
+    assert issubclass(SomeUnion, Union)
+
+    assert isinstance(value, Union)
+    with raises(TypeError):
+        issubclass(value, Union)  # type: ignore
+
+    assert not isinstance(b'string', Union)
+    with raises(TypeError):
+        issubclass(b'string', Union)  # type: ignore
+
+
+def test_typechecks_type() -> None:
+    class SomeUnion(Union):
+        field1: UInt8
+        field2: UInt16
+
+    value = SomeUnion(0)
+
+    assert not isinstance(Union, SomeUnion)
+    assert not issubclass(Union, SomeUnion)
+
+    assert not isinstance(SomeUnion, SomeUnion)
+    assert issubclass(SomeUnion, SomeUnion)
+
+    assert isinstance(value, SomeUnion)
+    with raises(TypeError):
+        issubclass(value, SomeUnion)  # type: ignore
+
+    assert not isinstance(b'string', SomeUnion)
+    with raises(TypeError):
+        issubclass(b'string', SomeUnion)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    class UnionA(Union):
+        field1: UInt8
+        field2: UInt16
+
+    class UnionB(Union):
+        field1: UInt16
+        field2: UInt8
+
+    union_a = UnionA(0)
+
+    assert not isinstance(UnionA, UnionB)
+    assert not issubclass(UnionA, UnionB)
+
+    assert not isinstance(union_a, UnionB)
+    with raises(TypeError):
+        issubclass(union_a, UnionB)  # type: ignore

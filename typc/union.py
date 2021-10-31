@@ -9,6 +9,7 @@ from ._base import BaseType, ContainerBase
 from ._impl import TypcType, TypcValue
 from ._meta import MAP, MEMBER, members_from_class
 from ._modifier import Modified
+from ._utils import false_isinstance, false_issubclass
 from .modifier import Padding
 
 SELF = TypeVar('SELF', bound='Union')
@@ -90,6 +91,18 @@ class UnionType(TypcType):
 
     def __contains__(self, name: str) -> bool:
         return name in self.__typc_members__
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        if isinstance(instance, UnionValue):
+            return instance.__typc_type__ == self
+        return false_isinstance(instance)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        if isinstance(subclass, UnionType):
+            return subclass == self
+        if subclass is Union:
+            return False
+        return false_issubclass(subclass)
 
 
 UNION_VALUE_ATTRS = ('__typc_type__', '__typc_child_data__', '__typc_value__',
@@ -269,6 +282,18 @@ class UnionMeta(type):
 
     def __contains__(self, name: str) -> bool:
         raise NotImplementedError
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if subclass is self or type(subclass) is UnionType:
+            return True
+        return false_issubclass(subclass)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if type(instance) is UnionValue:
+            return True
+        return false_isinstance(instance)
 
 
 class Union(ContainerBase, metaclass=UnionMeta):

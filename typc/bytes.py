@@ -1,17 +1,56 @@
 from __future__ import annotations
 
 from struct import Struct as BuiltinStruct
-from typing import (Any, Generic, Literal, Optional, Tuple, Type, TypeVar,
-                    Union, overload)
+from typing import (Any, Dict, Generic, Literal, Optional, Tuple, Type,
+                    TypeVar, Union, overload)
 
 from ._base import BaseType, ContainerBase
 from ._impl import TypcType, TypcValue
-from ._utils import generic_class_getitem
+from ._utils import false_isinstance, false_issubclass, generic_class_getitem
 
 SIZE = TypeVar('SIZE', bound=int)
 
 
-class Bytes(Generic[SIZE], BaseType):
+class BytesMeta(type):
+    def __new__(cls, _name: str, _bases: Tuple[type, ...],
+                _namespace_dict: Dict[str, Any]):
+        return BytesBase[Any]()
+
+
+class BytesBase(Generic[SIZE]):
+    __slots__ = ()
+
+    def __call__(
+        self,
+        size: Any,
+        value: Any = None,
+    ) -> BytesValue:
+        if isinstance(size, int):
+            bytes_type = BytesType(size, None)
+            return BytesValue(bytes_type, value)
+        raise TypeError
+
+    def __getitem__(self, size_literal: Any) -> Any:
+        if hasattr(size_literal, '__args__'):
+            size = size_literal.__args__[0]
+            if isinstance(size, int):
+                return BytesType(size, None)
+        return generic_class_getitem(self, size_literal)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if type(subclass) is BytesType or subclass is self:
+            return True
+        return false_issubclass(subclass)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        # pylint: disable=unidiomatic-typecheck
+        if type(instance) is BytesValue:
+            return True
+        return false_isinstance(instance)
+
+
+class Bytes(Generic[SIZE], BaseType, metaclass=BytesMeta):
     @overload
     def __init__(
         self,
@@ -85,12 +124,6 @@ class Bytes(Generic[SIZE], BaseType):
     def __setitem__(self, index: int, value: bytes) -> None:
         raise NotImplementedError
 
-    def __class_getitem__(cls, size: Any) -> Any:
-        # pylint: disable=arguments-differ
-        if hasattr(size, '__args__'):
-            return BytesType(size.__args__[0], None)
-        return generic_class_getitem(cls, size)
-
     def __bytes__(self) -> bytes:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
@@ -102,16 +135,6 @@ class Bytes(Generic[SIZE], BaseType):
     def __typc_set__(self, value: Any) -> None:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
-
-    def __new__(  # pylint: disable=arguments-differ
-        cls,
-        type_or_value: Any = None,
-        value: Any = None,
-    ):
-        if isinstance(type_or_value, int):
-            bytes_type = BytesType(type_or_value, None)
-            return BytesValue(bytes_type, value)
-        raise TypeError
 
 
 class BytesType(TypcType):
@@ -147,6 +170,18 @@ class BytesType(TypcType):
     def __eq__(self, obj: object) -> bool:
         return (isinstance(obj, BytesType)
                 and obj.__typc_size__ == self.__typc_size__)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        if isinstance(instance, BytesValue):
+            return instance.__typc_type__ == self
+        return false_isinstance(instance)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        if isinstance(subclass, BytesType):
+            return subclass == self
+        if subclass is Bytes:
+            return False
+        return false_issubclass(subclass)
 
 
 class BytesValue(TypcValue):

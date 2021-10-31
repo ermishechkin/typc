@@ -287,3 +287,54 @@ def test_eq() -> None:
     assert bytes16 != UInt16
     assert bytes16 != Bytes
     assert bytes16 != bytes
+
+
+def test_typechecks_meta() -> None:
+    bytes_t = typeof(Bytes(4))
+    bytes_v = Bytes(4, b'1234')
+
+    assert not isinstance(Bytes, Bytes)
+    assert issubclass(Bytes, Bytes)
+
+    assert not isinstance(bytes_t, Bytes)
+    assert issubclass(bytes_t, Bytes)
+
+    assert isinstance(bytes_v, Bytes)
+    with raises(TypeError):
+        issubclass(bytes_v, Bytes)  # type: ignore
+
+    assert not isinstance(b'string', Bytes)
+    with raises(TypeError):
+        issubclass(b'string', Bytes)  # type: ignore
+
+
+def test_typechecks_type() -> None:
+    bytes_t = typeof(Bytes(4))
+    bytes_v = Bytes(4, b'1234')
+
+    assert not isinstance(Bytes, bytes_t)
+    assert not issubclass(Bytes, bytes_t)
+
+    assert not isinstance(bytes_t, bytes_t)
+    assert issubclass(bytes_t, bytes_t)
+
+    assert isinstance(bytes_v, bytes_t)
+    with raises(TypeError):
+        issubclass(bytes_v, bytes_t)  # type: ignore
+
+    assert not isinstance(b'string', bytes_t)
+    with raises(TypeError):
+        issubclass(b'string', bytes_t)  # type: ignore
+
+
+def test_typechecks_type_another() -> None:
+    bytes4_t = typeof(Bytes(4))
+    bytes8_t = typeof(Bytes(8))
+    bytes4_v = Bytes(4, b'1234')
+
+    assert not isinstance(bytes4_t, bytes8_t)
+    assert not issubclass(bytes4_t, bytes8_t)
+
+    assert not isinstance(bytes4_v, bytes8_t)
+    with raises(TypeError):
+        issubclass(bytes4_v, bytes8_t)  # type: ignore

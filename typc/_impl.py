@@ -3,6 +3,8 @@ from __future__ import annotations
 from struct import Struct as BuiltinStruct
 from typing import Any, Literal, Optional, Tuple, Union, cast
 
+from ._utils import false_issubclass
+
 
 class TypcType:
     __slots__ = ('__typc_size__', '__typc_spec__', '__typc_name__')
@@ -24,6 +26,12 @@ class TypcType:
         raise NotImplementedError
 
     def __eq__(self, obj: object) -> bool:
+        raise NotImplementedError
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        raise NotImplementedError
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
         raise NotImplementedError
 
 
@@ -87,3 +95,11 @@ class TypcAtomType(TypcType):
     def __eq__(self, obj: object) -> bool:
         return (isinstance(obj, TypcAtomType)
                 and obj.__typc_spec__.format == self.__typc_spec__.format)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        return isinstance(instance, self.__typc_native__)
+
+    def __subclasscheck__(self, subclass: Any) -> bool:
+        if isinstance(subclass, TypcAtomType):
+            return subclass == self
+        return false_issubclass(subclass)
