@@ -16,14 +16,14 @@
 
     rect = Rect()
     reveal_type(Rect.pos)         # N: Revealed type is "Type[main.Pos*]"
-    reveal_type(Rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
+    reveal_type(Rect.pos.x)       # N: Revealed type is "Type[typc.atoms.UInt16]"
     reveal_type(Rect.size)        # N: Revealed type is "Type[main.Size*]"
-    reveal_type(Rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"
+    reveal_type(Rect.size.width)  # N: Revealed type is "Type[typc.atoms.UInt8]"
     reveal_type(rect)             # N: Revealed type is "main.Rect"
     reveal_type(rect.pos)         # N: Revealed type is "main.Pos*"
-    reveal_type(rect.pos.x)       # N: Revealed type is "builtins.int*"
+    reveal_type(rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
     reveal_type(rect.size)        # N: Revealed type is "main.Size*"
-    reveal_type(rect.size.width)  # N: Revealed type is "builtins.int*"
+    reveal_type(rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"
 
 - case: test_creation_with_instances
   main: |
@@ -43,11 +43,11 @@
 
     rect = Rect()
     reveal_type(Rect.pos)         # N: Revealed type is "Type[main.Pos*]"
-    reveal_type(Rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
+    reveal_type(Rect.pos.x)       # N: Revealed type is "Type[typc.atoms.UInt16]"
     reveal_type(Rect.size)        # N: Revealed type is "Type[main.Size*]"
-    reveal_type(Rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"
+    reveal_type(Rect.size.width)  # N: Revealed type is "Type[typc.atoms.UInt8]"
     reveal_type(rect)             # N: Revealed type is "main.Rect"
     reveal_type(rect.pos)         # N: Revealed type is "main.Pos*"
-    reveal_type(rect.pos.x)       # N: Revealed type is "builtins.int*"
+    reveal_type(rect.pos.x)       # N: Revealed type is "typc.atoms.UInt16"
     reveal_type(rect.size)        # N: Revealed type is "main.Size*"
-    reveal_type(rect.size.width)  # N: Revealed type is "builtins.int*"
+    reveal_type(rect.size.width)  # N: Revealed type is "typc.atoms.UInt8"

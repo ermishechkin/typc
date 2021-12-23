@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pytest import raises
-from typc import (Float, Int16, Struct, UInt8, UInt16, clone_type, sizeof,
-                  type_name)
+from typc import (Float, Int16, Struct, UInt8, UInt16, Union, clone_type,
+                  sizeof, type_name, typeof)
 
 
 def test_zero_init() -> None:
@@ -18,7 +18,6 @@ def test_init_zero() -> None:
 
     data = SomeStruct()
     data.field = Float(0)
-    assert isinstance(data.field, float)
     assert data.field == 0.0
 
 
@@ -58,18 +57,39 @@ def test_init_bad_type() -> None:
         data.field = UInt16('bad value')  # type: ignore
 
 
+def test_init_bad_size() -> None:
+    class SomeStruct(Struct):
+        field: UInt16
+
+    data = SomeStruct()
+    with raises(ValueError):
+        data.field = UInt16(b'\x11\x22\x33')
+
+
+def test_type_typeof() -> None:
+    class SomeStruct(Struct):
+        field: UInt16
+
+    data = SomeStruct()
+    assert typeof(data.field) == UInt16
+
+
 def test_type_sizeof() -> None:
     class SomeStruct(Struct):
         field: UInt16
 
+    data = SomeStruct()
     assert sizeof(SomeStruct.field) == 2
+    assert sizeof(data.field) == 2
 
 
 def test_name() -> None:
     class SomeStruct(Struct):
         field: UInt16
 
+    data = SomeStruct()
     assert type_name(SomeStruct.field) == 'uint16_t'
+    assert type_name(data.field) == 'uint16_t'
 
 
 def test_clone() -> None:
@@ -78,7 +98,6 @@ def test_clone() -> None:
     assert clone is not Float
     assert sizeof(clone) == 4
     assert type_name(clone) == 'float'
-    assert isinstance(data, float)
     assert data == 0.0
 
     clone2 = clone_type(clone, name='Float')
@@ -129,3 +148,93 @@ def test_typechecks_type_another() -> None:
     assert not isinstance(value_w, type_f)
     with raises(TypeError):
         issubclass(value_w, type_f)  # type: ignore
+
+
+def test_member_change_bytes() -> None:
+    class SomeStruct(Struct):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = SomeStruct()
+    inst.field_b = b'\x11\x22'
+    assert bytes(inst) == b'\x00\x11\x22'
+
+
+def test_member_change_another() -> None:
+    class SomeStruct(Struct):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = SomeStruct()
+    inst.field_b = 0x1234
+    assert bytes(inst) == b'\x00\x34\x12'
+
+
+def test_member_change_zero() -> None:
+    class SomeStruct(Struct):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = SomeStruct(b'\x11\x22\x33')
+    inst.field_b = 0
+    assert bytes(inst) == b'\x11\x00\x00'
+
+
+def test_member_change_bad_type() -> None:
+    class SomeStruct(Struct):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = SomeStruct()
+    with raises(TypeError):
+        inst.field_b = 'Bad value'  # type: ignore
+
+
+def test_member_change_bad_size() -> None:
+    class SomeStruct(Struct):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = SomeStruct()
+    with raises(ValueError):
+        inst.field_b = b'\x11'
+
+
+def test_union_full() -> None:
+    class Container(Union):
+        field_a: UInt16
+        field_b: UInt16
+
+    inst = Container(b'\x11\x22')
+    assert bytes(inst) == b'\x11\x22'
+
+    inst.field_a = 0x1234
+    assert bytes(inst.field_b) == b'\x34\x12'
+
+
+def test_union_begin() -> None:
+    class Container(Union):
+        field_a: UInt8
+        field_b: UInt16
+
+    inst = Container(b'\x11\x22')
+    assert bytes(inst) == b'\x11\x22'
+
+    inst.field_a = 0x12
+    assert bytes(inst.field_b) == b'\x12\x22'
+
+
+def test_union_end() -> None:
+    class TwoByte(Struct):
+        field1: UInt8
+        field2: UInt8
+
+    class Container(Union):
+        data: UInt16
+        twoint: TwoByte
+
+    inst = Container(b'\x11\x22')
+    assert bytes(inst.data) == b'\x11\x22'
+
+    inst.twoint.field2 = 0x44
+    assert bytes(inst.data) == b'\x11\x44'

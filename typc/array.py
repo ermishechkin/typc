@@ -5,7 +5,7 @@ from typing import (Any, Dict, Generic, List, Literal, Optional, Tuple, Type,
                     TypeVar, Union, overload)
 
 from ._base import BaseType, ContainerBase
-from ._impl import TypcAtomType, TypcType, TypcValue
+from ._impl import TypcAtomValue, TypcType, TypcValue
 from ._utils import false_isinstance, false_issubclass, generic_class_getitem
 from .structure import field_to_spec
 
@@ -229,7 +229,7 @@ class ArrayType(TypcType):
 class ArrayValue(TypcValue):
     __slots__ = ('__typc_inited__', '__typc_value__')
     __typc_type__: ArrayType
-    __typc_value__: List[Any]
+    __typc_value__: List[TypcValue]
 
     def __init__(
         self,
@@ -268,7 +268,7 @@ class ArrayValue(TypcValue):
     def length(self) -> int:
         return self.__typc_type__.__typc_count__
 
-    def __getitem__(self, index: int) -> Union[TypcValue, Any]:
+    def __getitem__(self, index: int) -> TypcValue:
         if not self.__typc_inited__:
             self._zero_init()
         return self.__typc_value__[index]
@@ -277,21 +277,12 @@ class ArrayValue(TypcValue):
         if not self.__typc_inited__:
             self._zero_init()
         el_type = self.__typc_type__.__typc_element__
-        if isinstance(el_type, TypcAtomType):
-            self.__typc_value__[index] = el_type(value)
-            if self.__typc_child_data__ is not None:
-                parent, self_offset = self.__typc_child_data__
-                parent.__typc_changed__(
-                    self,
-                    el_type.__typc_spec__.pack(self.__typc_value__[index]),
-                    self_offset + index * el_type.__typc_size__)
-        else:
-            self.__typc_value__[index].__typc_set__(value)
-            if self.__typc_child_data__ is not None:
-                parent, self_offset = self.__typc_child_data__
-                parent.__typc_changed__(
-                    self, bytes(self.__typc_value__[index]),
-                    self_offset + index * el_type.__typc_size__)
+        self.__typc_value__[index].__typc_set__(value)
+        if self.__typc_child_data__ is not None:
+            parent, self_offset = self.__typc_child_data__
+            parent.__typc_changed__(
+                self, bytes(self.__typc_value__[index]),
+                self_offset + index * el_type.__typc_size__)
 
     def _zero_init(self) -> None:
         element_type = self.__typc_type__.__typc_element__
@@ -310,12 +301,9 @@ class ArrayValue(TypcValue):
     def __bytes__(self) -> bytes:
         if not self.__typc_inited__:
             self._zero_init()
-        raw_value: List[Any] = []
-        for value in self.__typc_value__:
-            if isinstance(value, TypcValue):
-                raw_value.append(bytes(value))
-            else:
-                raw_value.append(value)
+        raw_value = tuple(
+            (v.__typc_value__ if isinstance(v, TypcAtomValue) else bytes(v))
+            for v in self.__typc_value__)
         return self.__typc_type__.__typc_spec__.pack(*raw_value)
 
     def __len__(self) -> int:
@@ -337,38 +325,28 @@ class ArrayValue(TypcValue):
             new_values = value
         else:
             raise TypeError
-        el_type = self_type.__typc_element__
         values_list = self.__typc_value__
         for i, new_val in enumerate(new_values):
-            if isinstance(el_type, TypcAtomType):
-                values_list[i] = el_type(new_val)
-            else:
-                values_list[i].__typc_set__(new_val)
+            values_list[i].__typc_set__(new_val)
 
     def __typc_set_part__(self, data: bytes, offset: int) -> None:
         el_type = self.__typc_type__.__typc_element__
-        if isinstance(el_type, TypcAtomType):
-            src_data = bytes(self)
-            dst_data = src_data[:offset] + data + src_data[offset + len(data):]
-            self.__typc_value__ = list(
-                self.__typc_type__.__typc_spec__.unpack(dst_data))
-        else:
-            el_size = el_type.__typc_size__
-            values_list = self.__typc_value__
-            first_off = offset % el_size
-            first_idx = offset // el_size
-            last_idx = (offset + len(data) - 1) // el_size
-            if first_off:
-                el_data = data[:el_size - first_off]
-                values_list[first_idx].__typc_set_part__(el_data, first_off)
-                first_idx += 1
-                data = data[el_size - first_off:]
-            for idx in range(last_idx - first_idx + 1):
-                el_data = data[idx * el_size:(idx + 1) * el_size]
-                if len(el_data) == el_size:
-                    values_list[first_idx + idx].__typc_set__(el_data)
-                else:
-                    values_list[first_idx + idx].__typc_set_part__(el_data, 0)
+        el_size = el_type.__typc_size__
+        values_list = self.__typc_value__
+        first_off = offset % el_size
+        first_idx = offset // el_size
+        last_idx = (offset + len(data) - 1) // el_size
+        if first_off:
+            el_data = data[:el_size - first_off]
+            values_list[first_idx].__typc_set_part__(el_data, first_off)
+            first_idx += 1
+            data = data[el_size - first_off:]
+        for idx in range(last_idx - first_idx + 1):
+            el_data = data[idx * el_size:(idx + 1) * el_size]
+            if len(el_data) == el_size:
+                values_list[first_idx + idx].__typc_set__(el_data)
+            else:
+                values_list[first_idx + idx].__typc_set_part__(el_data, 0)
 
     def __typc_changed__(self, source: TypcValue, data: bytes,
                          offset: int) -> None:

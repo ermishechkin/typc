@@ -113,7 +113,7 @@ class UnionValue(TypcValue):
     __slots__ = ('__typc_value__', '__typc_raw__')
 
     __typc_type__: UnionType
-    __typc_value__: Dict[str, Optional[TypingUnion[TypcValue, Any]]]
+    __typc_value__: Dict[str, Optional[TypcValue]]
     __typc_raw__: bytes
 
     def __init__(
@@ -152,17 +152,14 @@ class UnionValue(TypcValue):
             raise TypeError
         self.__typc_raw__ = new_value
         values_dict = self.__typc_value__
-        for ((member_name, (member_offset, member_type)),
-             prev_val) in zip(self_type.__typc_members__.items(),
+        for ((member_offset, member_type),
+             prev_val) in zip(self_type.__typc_members__.values(),
                               tuple(values_dict.values())):
             if prev_val is None:
                 continue
             member_raw = new_value[member_offset:member_offset +
                                    member_type.__typc_size__]
-            if isinstance(prev_val, TypcValue):
-                prev_val.__typc_set__(member_raw)
-            else:
-                values_dict[member_name] = member_type(member_raw)
+            prev_val.__typc_set__(member_raw)
 
     def __typc_set_part__(self, data: bytes, offset: int) -> None:
         self._set_part_impl(data, offset, None)
@@ -174,8 +171,8 @@ class UnionValue(TypcValue):
     def _set_part_impl(self, data: bytes, offset: int,
                        exclude: Optional[TypcValue]) -> None:
         prev_raw = self.__typc_raw__
-        self.__typc_raw__ = new_raw = (prev_raw[:offset] + data +
-                                       prev_raw[offset + len(data):])
+        self.__typc_raw__ = (prev_raw[:offset] + data +
+                             prev_raw[offset + len(data):])
         for name, (member_offset, member_type) in (
                 self.__typc_type__.__typc_members__.items()):
             member_size = member_type.__typc_size__
@@ -185,23 +182,18 @@ class UnionValue(TypcValue):
             member_value = self.__typc_value__[name]
             if member_value is None:
                 continue
-            if isinstance(member_value, TypcValue):
-                if member_value is not exclude:
-                    if member_offset <= offset:
-                        member_value.__typc_set_part__(
-                            data[:member_size + offset_diff], -offset_diff)
-                    else:
-                        member_value.__typc_set_part__(
-                            data[offset_diff:offset_diff + member_size], 0)
-            else:
-                (self.__typc_value__[name], ) = (
-                    member_type.__typc_spec__.unpack(
-                        new_raw[member_offset:member_offset + member_size]))
+            if member_value is not exclude:
+                if member_offset <= offset:
+                    member_value.__typc_set_part__(
+                        data[:member_size + offset_diff], -offset_diff)
+                else:
+                    member_value.__typc_set_part__(
+                        data[offset_diff:offset_diff + member_size], 0)
         if exclude is not None and self.__typc_child_data__ is not None:
             parent, self_offset = self.__typc_child_data__
             parent.__typc_changed__(self, data, self_offset + offset)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> TypcValue:
         if name not in self.__typc_value__:
             raise AttributeError
         value = self.__typc_value__[name]
@@ -227,19 +219,12 @@ class UnionValue(TypcValue):
         if member_value is None:
             new_value = member_type(value, (self, member_offset))
             values_dict[name] = new_value
-        elif isinstance(member_value, TypcValue):
+        else:
             member_value.__typc_set__(value)
             new_value = member_value
-        else:
-            new_value = member_type(value)
-            values_dict[name] = new_value
-        if isinstance(new_value, TypcValue):
-            self._set_part_impl(bytes(new_value), member_offset, new_value)
-        else:
-            self._set_part_impl(member_type.__typc_spec__.pack(new_value),
-                                member_offset, None)
+        self._set_part_impl(bytes(new_value), member_offset, new_value)
 
-    def __getitem__(self, name: str) -> Any:
+    def __getitem__(self, name: str) -> TypcValue:
         try:
             return getattr(self, name)
         except AttributeError:
@@ -454,7 +439,7 @@ class UntypedUnionValue(_UntypedUnion):
     ) -> TypingUnion[UntypedUnionType, UntypedUnionValue]:
         raise NotImplementedError
 
-    def __getitem__(self, field: str) -> Any:
+    def __getitem__(self, field: str) -> BaseType:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 

@@ -53,11 +53,12 @@ class AtomType(BaseType, Generic[RES], metaclass=AtomMeta):
 
     @overload
     def __get__(self: SELF, owner: Literal[None],
-                inst: Type[ContainerBase]) -> SELF:
+                inst: Type[ContainerBase]) -> Type[SELF]:
         ...
 
     @overload
-    def __get__(self, owner: ContainerBase, inst: Type[ContainerBase]) -> RES:
+    def __get__(self: SELF, owner: ContainerBase,
+                inst: Type[ContainerBase]) -> SELF:
         ...
 
     @overload
@@ -65,7 +66,7 @@ class AtomType(BaseType, Generic[RES], metaclass=AtomMeta):
         ...
 
     def __get__(self: SELF, owner: Optional[Any],
-                inst: Type[Any]) -> Union[SELF, RES]:
+                inst: Type[Any]) -> Union[Type[SELF], SELF]:
         raise NotImplementedError
 
     @overload

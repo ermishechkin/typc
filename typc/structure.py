@@ -5,7 +5,7 @@ from typing import (Any, Dict, Iterator, List, Literal, Optional, Tuple, Type,
                     TypeVar, Union, cast, overload)
 
 from ._base import BaseType, ContainerBase
-from ._impl import TypcAtomType, TypcType, TypcValue
+from ._impl import TypcAtomType, TypcAtomValue, TypcType, TypcValue
 from ._meta import MAP, MEMBER, members_from_class
 from ._modifier import Modified
 from ._utils import false_isinstance, false_issubclass
@@ -127,7 +127,7 @@ class StructValue(TypcValue):
 
     __typc_type__: StructType
     __typc_inited__: bool
-    __typc_value__: Dict[str, Union[TypcValue, Any]]
+    __typc_value__: Dict[str, TypcValue]
 
     def __init__(
         self,
@@ -177,13 +177,8 @@ class StructValue(TypcValue):
         else:
             raise TypeError
         values_dict = self.__typc_value__
-        for ((member_name, (_, member_type)), prev_val,
-             new_val) in zip(self_type.__typc_members__.items(),
-                             list(values_dict.values()), new_values):
-            if isinstance(prev_val, TypcValue):
-                prev_val.__typc_set__(new_val)
-            else:
-                values_dict[member_name] = member_type(new_val)
+        for prev_val, new_val in zip(list(values_dict.values()), new_values):
+            prev_val.__typc_set__(new_val)
 
     def __typc_set_part__(self, data: bytes, offset: int) -> None:
         last_byte = offset + len(data) - 1
@@ -198,16 +193,7 @@ class StructValue(TypcValue):
             end = min(member_end, last_byte)
             data_part = data[start - offset:end + 1 - offset]
             member_value = self.__typc_value__[name]
-            if isinstance(member_value, TypcValue):
-                member_value.__typc_set_part__(data_part, start - member_start)
-            else:
-                start_rel = start - member_start
-                end_rel = end - member_start
-                src_bytes = member_type.__typc_spec__.pack(member_value)
-                (self.__typc_value__[name], ) = (
-                    member_type.__typc_spec__.unpack(src_bytes[:start_rel] +
-                                                     data_part +
-                                                     src_bytes[end_rel + 1:]))
+            member_value.__typc_set_part__(data_part, start - member_start)
 
     def __typc_changed__(self, source: TypcValue, data: bytes,
                          offset: int) -> None:
@@ -228,7 +214,7 @@ class StructValue(TypcValue):
         }
         self.__typc_inited__ = True
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> TypcValue:
         if not self.__typc_inited__:
             self._zero_init()
         if name in self.__typc_value__:
@@ -244,27 +230,16 @@ class StructValue(TypcValue):
         values_dict = self.__typc_value__
         if name in values_dict:
             current_value = values_dict[name]
-            if isinstance(current_value, TypcValue):
-                current_value.__typc_set__(value)
-                if self.__typc_child_data__ is not None:
-                    parent, self_offset = self.__typc_child_data__
-                    member_offset, _ = (
-                        self.__typc_type__.__typc_members__[name])
-                    parent.__typc_changed__(self, bytes(current_value),
-                                            self_offset + member_offset)
-            else:
-                member_offset, member_type = (
-                    self.__typc_type__.__typc_members__[name])
-                new_value = values_dict[name] = member_type(value)
-                if self.__typc_child_data__ is not None:
-                    parent, self_offset = self.__typc_child_data__
-                    parent.__typc_changed__(
-                        self, member_type.__typc_spec__.pack(new_value),
-                        self_offset + member_offset)
+            current_value.__typc_set__(value)
+            if self.__typc_child_data__ is not None:
+                parent, self_offset = self.__typc_child_data__
+                member_offset, _ = (self.__typc_type__.__typc_members__[name])
+                parent.__typc_changed__(self, bytes(current_value),
+                                        self_offset + member_offset)
         else:
             raise AttributeError
 
-    def __getitem__(self, name: str) -> Any:
+    def __getitem__(self, name: str) -> TypcValue:
         try:
             return getattr(self, name)
         except AttributeError:
@@ -290,10 +265,10 @@ class StructValue(TypcValue):
             self._zero_init()
         raw_value: List[Any] = []
         for value in self.__typc_value__.values():
-            if isinstance(value, TypcValue):
-                raw_value.append(bytes(value))
+            if isinstance(value, TypcAtomValue):
+                raw_value.append(value.__typc_value__)
             else:
-                raw_value.append(value)
+                raw_value.append(bytes(value))
         return self.__typc_type__.__typc_spec__.pack(*raw_value)
 
 
@@ -494,7 +469,7 @@ class UntypedStructValue(_UntypedStruct):
             inst: Type[Any]) -> Union[UntypedStructType, UntypedStructValue]:
         raise NotImplementedError
 
-    def __getitem__(self, field: str) -> Any:
+    def __getitem__(self, field: str) -> BaseType:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
 

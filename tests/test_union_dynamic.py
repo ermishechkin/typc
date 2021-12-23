@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pytest import raises
 from typc import (Padding, Struct, UInt8, UInt16, create_struct, create_union,
                   offsetof, padded, shifted, sizeof, type_name, typeof)
@@ -103,8 +105,8 @@ def test_init_zero() -> None:
     })
 
     data = data_t(0)
-    assert data['pos'].x == 0
-    assert data['pos'].y == 0
+    assert data['pos'].x == 0  # type: ignore
+    assert data['pos'].y == 0  # type: ignore
     assert data['u16'] == 0
     assert data['u8'] == 0
     assert bytes(data) == b'\x00\x00\x00\x00'
@@ -123,8 +125,8 @@ def test_init_bytes() -> None:
 
     data = data_t(b'\x11\x22\x33\x44')
     assert data['u16'] == 0x2211
-    assert data['pos'].x == 0x2211
-    assert data['pos'].y == 0x4433
+    assert data['pos'].x == 0x2211  # type: ignore
+    assert data['pos'].y == 0x4433  # type: ignore
     assert data['u8'] == 0x11
 
 
@@ -143,8 +145,8 @@ def test_init_union() -> None:
     data2 = data_t(data1)
 
     assert data2['u16'] == 0x2211
-    assert data2['pos'].x == 0x2211
-    assert data2['pos'].y == 0x4433
+    assert data2['pos'].x == 0x2211  # type: ignore
+    assert data2['pos'].y == 0x4433  # type: ignore
     assert data2['u8'] == 0x11
 
 
@@ -169,7 +171,7 @@ def test_padding() -> None:
     })
     assert sizeof(data_t) == 5
     data = data_t(b'\x11\x22\x33\x44\x55')
-    assert data['child1']['field3'] == 0x44
+    assert data['child1']['field3'] == 0x44  # type: ignore
     assert bytes(data) == b'\x11\x22\x33\x44\x55'
 
 
@@ -195,7 +197,7 @@ def test_shifted() -> None:
     assert offsetof(data_t, 'child2') == 1
     assert offsetof(data_t, 'child3') == 1
 
-    data = data_t(0)
+    data: Any = data_t(0)
     child1 = data['child1']
     data['child2']['field2_1'] = 0x12
     assert child1['field1_1'] == 0x1200

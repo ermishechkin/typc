@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pytest import raises
 from typc import (Padding, UInt8, UInt16, create_struct, offsetof, padded,
                   shifted, sizeof, type_name, typeof)
@@ -134,7 +136,7 @@ def test_init_zero() -> None:
         'size': size_t,
     })
 
-    rect = rect_t(0)
+    rect: Any = rect_t(0)
     assert rect['pos']['x'] == 0
     assert rect['pos']['y'] == 0
     assert rect['size']['height'] == 0
@@ -231,7 +233,7 @@ def test_int_member_assignment() -> None:
         'pos': pos_t,
         'size': size_t,
     })
-    rect = rect_t(0)
+    rect: Any = rect_t(0)
     rect['pos']['y'] = 0x1234
     rect['size']['width'] = 0x56
     assert rect['pos']['x'] == 0
@@ -254,8 +256,8 @@ def test_substruct_member_assignment() -> None:
         'pos': pos_t,
         'size': size_t,
     })
-    rect1 = rect_t(0)
-    rect2 = rect_t(0)
+    rect1: Any = rect_t(0)
+    rect2: Any = rect_t(0)
     rect1['pos']['x'] = 0x0123
     rect1['pos']['y'] = b'\x67\x45'
     rect1['size']['width'] = UInt8(0x11)
@@ -278,7 +280,7 @@ def test_substruct_assignment() -> None:
         'point2': pos_t,
     })
 
-    rect = rect_t((pos_t((0, 0)), pos_t((0, 0))))
+    rect: Any = rect_t((pos_t((0, 0)), pos_t((0, 0))))
     point2_ref = rect['point2']
 
     rect['point1'] = pos_t((0x0123, 0x4567))
@@ -315,7 +317,7 @@ def test_multilevel_assignment() -> None:
         'field1': intermediate_t,
         'field2': intermediate_t,
     })
-    inst = parent_t(b'\x00\x11\x22\x33\x44\x55\x66\x77')
+    inst: Any = parent_t(b'\x00\x11\x22\x33\x44\x55\x66\x77')
     child1_2 = inst['field1']['child2']
     inst['field1'] = (child_t((1, 2)), child_t((3, 4)))
     assert child1_2['a'] == 3
