@@ -4,7 +4,7 @@ from typing import (Any, Dict, Generic, Literal, Optional, Tuple, Type,
                     TypeVar, Union, overload)
 
 from ._base import BaseType, ContainerBase
-from ._impl import TypcAtomType
+from ._impl import TypcAtomBase
 
 SELF = TypeVar('SELF', bound='AtomType[Any]')
 CLASS = TypeVar('CLASS')
@@ -12,14 +12,19 @@ RES = TypeVar('RES')
 
 
 class AtomMeta(type):
-    def __new__(cls, name: str, bases: Tuple[type, ...],
-                namespace_dict: Dict[str, Any]):
-        if namespace_dict['__module__'] == __name__:
-            return type.__new__(cls, name, bases, namespace_dict)
-        return TypcAtomType(namespace_dict['__typc_name__'],
-                            namespace_dict['__typc_spec__'],
-                            namespace_dict['__typc_size__'],
-                            namespace_dict['__typc_native__'])
+    def __new__(
+        cls,
+        name: str,
+        bases: Tuple[type, ...],
+        namespace_dict: Dict[str, Any],
+        *,
+        native_type: Optional[type] = None,
+    ):
+        if native_type is not None:
+            return type(name, (TypcAtomBase, ),
+                        namespace_dict,
+                        native_type=native_type)
+        return type.__new__(cls, name, bases, namespace_dict)
 
 
 class AtomType(BaseType, Generic[RES], metaclass=AtomMeta):
@@ -95,3 +100,211 @@ class AtomType(BaseType, Generic[RES], metaclass=AtomMeta):
     def __bytes__(self) -> bytes:
         ...  # mark as non-abstract for pylint
         raise NotImplementedError
+
+
+@overload
+def binary_method(_self: Any, _obj: Union[int, AtomType[int]]) -> int:
+    ...
+
+
+@overload
+def binary_method(_self: Any, _obj: Union[float, AtomType[float]]) -> float:
+    ...
+
+
+def binary_method(_self: Any, _obj: Any) -> Union[int, float]:
+    ...
+
+
+def binary_method_int(
+    _self: Any,
+    _obj: Union[int, AtomType[int]],
+) -> int:
+    ...
+
+
+def binary_method_float(
+    _self: Any,
+    _obj: Union[int, float, AtomType[int], AtomType[float]],
+) -> float:
+    ...
+
+
+def inplace_method(
+    _self: SELF,
+    _obj: Union[int, AtomType[int], float, AtomType[float]],
+) -> SELF:
+    ...
+
+
+def inplace_method_int(_self: SELF, _obj: Union[int, AtomType[int]]) -> SELF:
+    ...
+
+
+def cmp_method(_self: Any, _obj: Any) -> bool:
+    ...
+
+
+@overload
+def divmod_method(
+    _self: Any,
+    _obj: Union[int, AtomType[int]],
+) -> Tuple[int, int]:
+    ...
+
+
+@overload
+def divmod_method(
+    _self: Any,
+    _obj: Union[float, AtomType[float]],
+) -> Tuple[float, float]:
+    ...
+
+
+def divmod_method(_self: Any, _obj: Any) -> Any:
+    ...
+
+
+def divmod_method_float(
+    _self: Any,
+    _obj: Union[int, float, AtomType[int], AtomType[float]],
+) -> Tuple[float, float]:
+    ...
+
+
+class Integer(AtomType[int], native_type=int):
+    def __index__(self) -> int:
+        ...
+
+    def __abs__(self) -> int:
+        ...
+
+    def __bool__(self) -> bool:
+        ...
+
+    def __ceil__(self) -> int:
+        ...
+
+    def __float__(self) -> float:
+        ...
+
+    def __floor__(self) -> int:
+        ...
+
+    def __int__(self) -> int:
+        ...
+
+    def __invert__(self) -> int:
+        ...
+
+    def __neg__(self) -> int:
+        ...
+
+    def __pos__(self) -> int:
+        ...
+
+    def __round__(self) -> int:
+        ...
+
+    def __trunc__(self) -> int:
+        ...
+
+    __add__ = binary_method
+    __and__ = binary_method_int
+    __divmod__ = divmod_method
+    __floordiv__ = binary_method
+    __lshift__ = binary_method_int
+    __mod__ = binary_method
+    __mul__ = binary_method
+    __or__ = binary_method_int
+    __pow__ = binary_method
+    __rshift__ = binary_method_int
+    __sub__ = binary_method
+    __truediv__ = binary_method
+    __xor__ = binary_method_int
+
+    __radd__ = binary_method
+    __rand__ = binary_method_int
+    __rdivmod__ = divmod_method
+    __rfloordiv__ = binary_method
+    __rlshift__ = binary_method_int
+    __rmod__ = binary_method
+    __rmul__ = binary_method
+    __ror__ = binary_method_int
+    __rpow__ = binary_method
+    __rrshift__ = binary_method_int
+    __rsub__ = binary_method
+    __rtruediv__ = binary_method
+    __rxor__ = binary_method_int
+
+    __ge__ = cmp_method
+    __gt__ = cmp_method
+    __le__ = cmp_method
+    __lt__ = cmp_method
+
+    __iadd__ = inplace_method
+    __iand__ = inplace_method_int
+    __ifloordiv__ = inplace_method
+    __ilshift__ = inplace_method_int
+    __imod__ = inplace_method
+    __imul__ = inplace_method
+    __ior__ = inplace_method_int
+    __ipow__ = inplace_method
+    __irshift__ = inplace_method_int
+    __isub__ = inplace_method
+    __itruediv__ = inplace_method
+    __ixor__ = inplace_method_int
+
+
+class Real(AtomType[float], native_type=float):
+    def __abs__(self) -> float:
+        ...
+
+    def __bool__(self) -> bool:
+        ...
+
+    def __float__(self) -> float:
+        ...
+
+    def __int__(self) -> int:
+        ...
+
+    def __neg__(self) -> float:
+        ...
+
+    def __pos__(self) -> float:
+        ...
+
+    def __round__(self) -> int:
+        ...
+
+    def __trunc__(self) -> int:
+        ...
+
+    __add__ = binary_method_float
+    __divmod__ = divmod_method_float
+    __floordiv__ = binary_method_float
+    __mod__ = binary_method_float
+    __mul__ = binary_method_float
+    __sub__ = binary_method_float
+    __truediv__ = binary_method_float
+
+    __radd__ = binary_method_float
+    __rdivmod__ = divmod_method_float
+    __rfloordiv__ = binary_method_float
+    __rmod__ = binary_method_float
+    __rmul__ = binary_method_float
+    __rsub__ = binary_method_float
+    __rtruediv__ = binary_method_float
+
+    __ge__ = cmp_method
+    __gt__ = cmp_method
+    __le__ = cmp_method
+    __lt__ = cmp_method
+
+    __iadd__ = inplace_method
+    __ifloordiv__ = inplace_method
+    __imod__ = inplace_method
+    __imul__ = inplace_method
+    __isub__ = inplace_method
+    __itruediv__ = inplace_method

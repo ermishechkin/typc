@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from operator import index
+
 from pytest import raises
-from typc import (Float, Int16, Struct, UInt8, UInt16, Union, clone_type,
-                  sizeof, type_name, typeof)
+from typc import (Float, Int16, Integer, Real, Struct, UInt8, UInt16, Union,
+                  clone_type, sizeof, type_name, typeof)
 
 
 def test_zero_init() -> None:
@@ -119,6 +121,40 @@ def test_eq() -> None:
 
     clone8 = clone_type(UInt8)
     assert UInt16 != clone8
+
+
+def test_typechecks_meta() -> None:
+    clone16 = clone_type(UInt16, name='Word')
+    value = clone16(0x1234)
+
+    assert not isinstance(Integer, Integer)
+    assert issubclass(Integer, Integer)
+
+    assert not isinstance(clone16, Integer)
+    assert issubclass(clone16, Integer)
+
+    assert isinstance(value, Integer)
+    with raises(TypeError):
+        issubclass(value, Integer)  # type: ignore
+
+    assert not isinstance('string', Integer)
+    with raises(TypeError):
+        issubclass('string', Integer)  # type: ignore
+
+
+def test_typechecks_meta_another() -> None:
+    clone16 = clone_type(UInt16, name='Word')
+    value = clone16(0x1234)
+
+    assert not isinstance(Integer, Real)
+    assert not issubclass(Integer, Real)
+
+    assert not isinstance(clone16, Real)
+    assert not issubclass(clone16, Real)
+
+    assert not isinstance(value, Real)
+    with raises(TypeError):
+        issubclass(value, Real)  # type: ignore
 
 
 def test_typechecks_type() -> None:
@@ -238,3 +274,72 @@ def test_union_end() -> None:
 
     inst.twoint.field2 = 0x44
     assert bytes(inst.data) == b'\x11\x44'
+
+
+def test_unary_operator() -> None:
+    obj = UInt16(10)
+
+    res1 = -obj
+    res2 = index(obj)
+
+    assert isinstance(res1, int)
+    assert res1 == -10
+
+    assert isinstance(res2, int)
+    assert res2 == 10
+
+
+def test_binary_operator() -> None:
+    obj1 = UInt16(10)
+    obj2 = UInt16(20)
+    obj3 = Float(30.0)
+
+    res1 = obj1 + 1
+    res2 = obj1 + 1.0
+    res3 = 1 + obj1
+    res4 = 1.0 + obj1
+    res5 = obj1 + obj2
+    res6 = obj1 + obj3
+
+    assert isinstance(res1, int)
+    assert res1 == 11
+
+    assert isinstance(res2, float)
+    assert res2 == 11.0
+
+    assert isinstance(res3, int)
+    assert res3 == 11
+
+    assert isinstance(res4, float)
+    assert res4 == 11.0
+
+    assert isinstance(res5, int)
+    assert res5 == 30
+
+    assert isinstance(res6, float)
+    assert res6 == 40.0
+
+
+def test_inplace_operator() -> None:
+    obj_1 = obj_1_bak = UInt16(10)
+    obj_2 = obj_2_bak = UInt16(20)
+    obj_3 = obj_3_bak = UInt16(30)
+    obj_4 = obj_4_bak = UInt16(40)
+    obj_5 = UInt16(50)
+    obj_6 = Float(60.9)
+
+    obj_1 += 1
+    assert obj_1 is obj_1_bak
+    assert obj_1 == 11
+
+    obj_2 += 2.6
+    assert obj_2 is obj_2_bak
+    assert obj_2 == 22
+
+    obj_3 += obj_5
+    assert obj_3 is obj_3_bak
+    assert obj_3 == 80
+
+    obj_4 += obj_6
+    assert obj_4 is obj_4_bak
+    assert obj_4 == 100
